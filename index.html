@@ -11,13 +11,21 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<!-- Konfetti til feiringen -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1/dist/confetti.browser.min.js"></script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
   body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; margin: 0; }
   .ec-display { font-family: 'Schibsted Grotesk', 'Inter', system-ui, sans-serif; }
   .ec-num { font-family: 'Schibsted Grotesk', 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @keyframes ecPop { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+  .ec-pop { animation: ecPop .5s cubic-bezier(.2,.7,.3,1.4) both; }
+  @keyframes ecRing { 0% { transform: scale(.85); opacity: .55; } 100% { transform: scale(1.9); opacity: 0; } }
+  .ec-ring { animation: ecRing 1s ease-out forwards; }
+  @keyframes ecRise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  .ec-rise { animation: ecRise .4s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { *, .ec-pop, .ec-ring, .ec-rise { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -122,10 +130,10 @@ function baseItems(type) {
 }
 
 const TYPE_META = {
-  paper: { label: 'Penn og papir', Icon: FileText, chip: 'bg-amber-50 text-amber-700 ring-amber-200', bar: 'bg-amber-500', check: 'border border-amber-500 bg-amber-500' },
-  lockdown: { label: 'Lockdown Browser', Icon: Lock, chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200', bar: 'bg-indigo-500', check: 'border border-indigo-500 bg-indigo-500' },
-  monitor: { label: 'Device Monitor', Icon: ScanLine, chip: 'bg-rose-50 text-rose-700 ring-rose-200', bar: 'bg-rose-500', check: 'border border-rose-500 bg-rose-500' },
-  oral: { label: 'Muntlig/praktisk', Icon: Mic, chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200', bar: 'bg-emerald-500', check: 'border border-emerald-500 bg-emerald-500' },
+  paper:    { label: 'Penn og papir',     Icon: FileText,  chip: 'bg-amber-50 text-amber-700 ring-amber-200',     bar: 'bg-gradient-to-r from-amber-400 to-orange-500',   check: 'bg-gradient-to-br from-amber-400 to-orange-500' },
+  lockdown: { label: 'Lockdown Browser',  Icon: Lock,      chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200',  bar: 'bg-gradient-to-r from-indigo-500 to-violet-500',  check: 'bg-gradient-to-br from-indigo-500 to-violet-500' },
+  monitor:  { label: 'Device Monitor',    Icon: ScanLine,  chip: 'bg-rose-50 text-rose-700 ring-rose-200',        bar: 'bg-gradient-to-r from-rose-500 to-pink-500',      check: 'bg-gradient-to-br from-rose-500 to-pink-500' },
+  oral:     { label: 'Muntlig/praktisk',  Icon: Mic,       chip: 'bg-teal-50 text-teal-700 ring-teal-200',        bar: 'bg-gradient-to-r from-emerald-400 to-teal-500',   check: 'bg-gradient-to-br from-emerald-400 to-teal-500' },
 };
 
 /* ---------------- Lagring (localStorage) ---------------- */
@@ -158,12 +166,25 @@ function itemsForType(type, entry) {
   return [...baseItems(type), ...((entry && entry.custom) || [])];
 }
 
+/* ---------------- Feiring ---------------- */
+function fireConfetti() {
+  if (typeof window.confetti !== 'function') return;
+  const colors = ['#34d399', '#06b6d4', '#6366f1', '#a855f7', '#f59e0b', '#ec4899'];
+  window.confetti({ particleCount: 130, spread: 95, startVelocity: 45, origin: { y: 0.62 }, colors });
+  const end = Date.now() + 900;
+  (function frame() {
+    window.confetti({ particleCount: 5, angle: 60, spread: 65, origin: { x: 0 }, colors });
+    window.confetti({ particleCount: 5, angle: 120, spread: 65, origin: { x: 1 }, colors });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
 /* ---------------- Små komponenter ---------------- */
 function TypeChip({ type }) {
   const m = TYPE_META[type];
   const Icon = m.Icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${m.chip}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${m.chip}`}>
       <Icon size={13} />
       {m.label}
     </span>
@@ -172,7 +193,7 @@ function TypeChip({ type }) {
 
 function ProgressBar({ pct, colorClass }) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
       <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: pct + '%' }} />
     </div>
   );
@@ -185,8 +206,8 @@ function ItemRow({ label, checked, meta, onToggle, onRemove }) {
         onClick={onToggle}
         aria-pressed={checked}
         aria-label={label}
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
-          checked ? meta.check : 'border border-slate-300 bg-white hover:border-slate-400'
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+          checked ? meta.check + ' shadow-sm' : 'border border-slate-300 bg-white hover:border-slate-400'
         }`}
       >
         {checked && <Check size={12} strokeWidth={3} className="text-white" />}
@@ -209,7 +230,7 @@ function AddItemRow({ onAdd }) {
   const submit = () => { if (text.trim()) { onAdd(text); setText(''); setOpen(false); } };
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md px-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
+      <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md px-1 text-xs font-semibold text-indigo-500 transition-colors hover:text-indigo-700">
         <Plus size={13} /> Legg til eget punkt
       </button>
     );
@@ -222,9 +243,9 @@ function AddItemRow({ onAdd }) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setOpen(false); setText(''); } }}
         placeholder="Nytt punkt …"
-        className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+        className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
       />
-      <button onClick={submit} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800">Legg til</button>
+      <button onClick={submit} className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90">Legg til</button>
       <button onClick={() => { setOpen(false); setText(''); }} aria-label="Avbryt" className="text-slate-400 transition-colors hover:text-slate-600"><XIcon size={16} /></button>
     </div>
   );
@@ -236,8 +257,16 @@ function ExamPrep() {
   const [data, setData] = useState(boot.data);
   const [selectedType, setSelectedType] = useState(boot.selectedType);
   const [confirm, setConfirm] = useState(null);
+  const [celebrate, setCelebrate] = useState(false);
 
   useEffect(() => { saveState({ data, selectedType }); }, [data, selectedType]);
+
+  useEffect(() => {
+    if (!celebrate) return;
+    fireConfetti();
+    const t = setTimeout(() => setCelebrate(false), 5000);
+    return () => clearTimeout(t);
+  }, [celebrate]);
 
   const toggle = (type, itemId) => {
     const entry = data[type] || { checked: {}, custom: [] };
@@ -283,26 +312,26 @@ function ExamPrep() {
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-800">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
 
         <header className="mb-6 flex items-center gap-3 sm:mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
-            <GraduationCap size={20} />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/30">
+            <GraduationCap size={22} />
           </div>
           <div>
-            <h1 className="ec-display text-xl font-semibold tracking-tight text-slate-900">Eksamenstralla</h1>
+            <h1 className="ec-display bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">Eksamenstralla</h1>
             <p className="text-sm text-slate-500">Sjekklister for eksamensforberedelser</p>
           </div>
         </header>
 
-        <label htmlFor="type-select" className="mb-1.5 block text-sm font-medium text-slate-600">Eksamenstype</label>
+        <label htmlFor="type-select" className="mb-1.5 block text-sm font-semibold text-slate-600">Eksamenstype</label>
         <div className="relative">
           <select
             id="type-select"
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
           >
             <option value="">Velg eksamenstype …</option>
             {TYPES.map((t) => (<option key={t} value={t}>{TYPE_META[t].label}</option>))}
@@ -311,24 +340,24 @@ function ExamPrep() {
         </div>
 
         {!selectedType ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-              <ClipboardList size={22} />
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25">
+              <ClipboardList size={24} />
             </div>
-            <h3 className="ec-display mt-4 text-base font-semibold text-slate-900">Velg en eksamenstype</h3>
+            <h3 className="ec-display mt-4 text-base font-bold text-slate-900">Velg en eksamenstype</h3>
             <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">
               Velg type i menyen over for å se sjekklisten for forberedelsene. Du kan også legge til egne punkter.
             </p>
           </div>
         ) : (
           <div className="mt-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <TypeChip type={selectedType} />
               <div className="mt-4">
                 <ProgressBar pct={pct} colorClass={m.bar} />
                 <div className="mt-1.5 flex justify-between text-xs text-slate-500">
                   <span>{done} av {total} fullført</span>
-                  <span className="ec-num font-medium text-slate-600">{pct}%</span>
+                  <span className="ec-num font-semibold text-slate-600">{pct}%</span>
                 </div>
               </div>
 
@@ -354,7 +383,7 @@ function ExamPrep() {
             <div className="mt-3 flex">
               <button
                 onClick={() => setConfirm({ kind: 'reset', type: selectedType })}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white"
               >
                 <RotateCcw size={14} /> Tilbakestill sjekklisten
               </button>
@@ -363,6 +392,7 @@ function ExamPrep() {
         )}
       </div>
 
+      {/* Bekreftelse */}
       {confirm && (() => {
         const isFinished = confirm.kind === 'finished';
         const title = isFinished ? 'Er du sikker på at du er helt ferdig?' : 'Tilbakestille fremdrift?';
@@ -370,22 +400,47 @@ function ExamPrep() {
           ? 'Du har fullført alle punktene. Trykker du «Ja», nullstilles hele sjekklisten så den er klar til neste eksamen. Trykk «Nei» for å fortsette.'
           : 'Alle punkter merkes som ikke fullført. Egne punkter du har lagt til, beholdes.';
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirm(null)}>
-            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="ec-display text-base font-semibold text-slate-900">{title}</h3>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirm(null)}>
+            <div className="ec-pop w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="ec-display text-base font-bold text-slate-900">{title}</h3>
               <p className="mt-1 text-sm text-slate-500">{body}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button onClick={() => setConfirm(null)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100">
                   {isFinished ? 'Nei' : 'Avbryt'}
                 </button>
-                <button onClick={() => resetType(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">
-                  {isFinished ? 'Ja' : 'Tilbakestill'}
-                </button>
+                {isFinished ? (
+                  <button onClick={() => { setCelebrate(true); resetType(confirm.type); }} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
+                    Ja
+                  </button>
+                ) : (
+                  <button onClick={() => resetType(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">
+                    Tilbakestill
+                  </button>
+                )}
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Feiring */}
+      {celebrate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4 backdrop-blur-sm" onClick={() => setCelebrate(false)}>
+          <div className="ec-pop w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="relative mx-auto h-20 w-20">
+              <span className="ec-ring absolute inset-0 rounded-full bg-emerald-400"></span>
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/40">
+                <Check size={42} strokeWidth={3} className="text-white" />
+              </div>
+            </div>
+            <h3 className="ec-display ec-rise mt-5 text-2xl font-extrabold text-slate-900">Ferdig! 🎉</h3>
+            <p className="ec-rise mt-1 text-sm text-slate-500">Alt er huket av og klart til eksamen. Sjekklisten er nullstilt for neste gang.</p>
+            <button onClick={() => setCelebrate(false)} className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
+              Flott!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
