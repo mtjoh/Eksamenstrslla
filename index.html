@@ -52,7 +52,10 @@ const Check = (p) => (<svg {...ic(p)}><path d="M20 6 9 17l-5-5"/></svg>);
 const XIcon = (p) => (<svg {...ic(p)}><path d="M18 6 6 18M6 6l12 12"/></svg>);
 const RotateCcw = (p) => (<svg {...ic(p)}><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>);
 const ChevronDown = (p) => (<svg {...ic(p)}><path d="m6 9 6 6 6-6"/></svg>);
+const ChevronLeft = (p) => (<svg {...ic(p)}><path d="m15 18-6-6 6-6"/></svg>);
 const ClipboardList = (p) => (<svg {...ic(p)}><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>);
+const Save = (p) => (<svg {...ic(p)}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h7"/></svg>);
+const Trash = (p) => (<svg {...ic(p)}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>);
 
 /* ---------------- Sjekklister ---------------- */
 const PAPER_ITEMS = [
@@ -137,14 +140,12 @@ const TYPE_META = {
 };
 
 /* ---------------- Lagring (localStorage) ---------------- */
-const KEY = 'eksamenstralla:v1';
+const KEY = 'eksamenstralla:v2';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-function emptyData() {
-  const d = {};
-  for (const t of TYPES) d[t] = { checked: {}, custom: [] };
-  return d;
-}
+function emptyDraft() { return { checked: {}, custom: [], emnekode: '', reelTid: '' }; }
+function emptyDrafts() { const d = {}; for (const t of TYPES) d[t] = emptyDraft(); return d; }
+
 function loadState() {
   try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; }
 }
@@ -153,17 +154,58 @@ function saveState(o) {
 }
 function readInitial() {
   const s = loadState();
-  const data = emptyData();
-  if (s && s.data) {
-    for (const t of TYPES) {
-      if (s.data[t]) data[t] = { checked: s.data[t].checked || {}, custom: Array.isArray(s.data[t].custom) ? s.data[t].custom : [] };
+  const drafts = emptyDrafts();
+  let selectedType = '';
+  let saved = [];
+  if (s) {
+    if (s.drafts) {
+      for (const t of TYPES) {
+        const dd = s.drafts[t];
+        if (dd) drafts[t] = {
+          checked: dd.checked || {},
+          custom: Array.isArray(dd.custom) ? dd.custom : [],
+          emnekode: typeof dd.emnekode === 'string' ? dd.emnekode : '',
+          reelTid: typeof dd.reelTid === 'string' ? dd.reelTid : '',
+        };
+      }
+    }
+    if (typeof s.selectedType === 'string') selectedType = s.selectedType;
+    if (Array.isArray(s.saved)) {
+      saved = s.saved.filter((e) => e && TYPES.indexOf(e.type) >= 0).map((e) => ({
+        id: e.id || ('sv_' + uid()), type: e.type,
+        emnekode: e.emnekode || '', reelTid: e.reelTid || '',
+        checked: e.checked || {}, custom: Array.isArray(e.custom) ? e.custom : [],
+        savedAt: e.savedAt || Date.now(),
+      }));
     }
   }
-  const selectedType = (s && typeof s.selectedType === 'string') ? s.selectedType : '';
-  return { data, selectedType };
+  return { drafts, selectedType, saved };
 }
-function itemsForType(type, entry) {
-  return [...baseItems(type), ...((entry && entry.custom) || [])];
+
+function itemsFor(type, holder) {
+  return baseItems(type).concat((holder && holder.custom) || []);
+}
+function progress(type, holder) {
+  const items = itemsFor(type, holder);
+  const total = items.length;
+  const checked = (holder && holder.checked) || {};
+  const done = items.filter((i) => checked[i.id]).length;
+  return { items, total, done, pct: total ? Math.round((done / total) * 100) : 0 };
+}
+function groupByCode(saved) {
+  const map = {}; const order = [];
+  for (const e of saved) {
+    const key = e.emnekode || '';
+    if (!map[key]) { map[key] = []; order.push(key); }
+    map[key].push(e);
+  }
+  const groups = order.map((code) => ({ code, entries: map[code].slice().sort((a, b) => b.savedAt - a.savedAt) }));
+  groups.sort((a, b) => { if (a.code === '') return 1; if (b.code === '') return -1; return a.code.localeCompare(b.code, 'nb'); });
+  return groups;
+}
+function formatSaved(ts) {
+  try { return new Date(ts).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  catch (e) { return ''; }
 }
 
 /* ---------------- Feiring ---------------- */
@@ -224,6 +266,17 @@ function ItemRow({ label, checked, meta, onToggle, onRemove }) {
   );
 }
 
+function StaticRow({ label, done, meta, indent }) {
+  return (
+    <div className={`flex items-start gap-3 px-1 py-2.5 ${indent ? 'ml-9' : ''}`}>
+      <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${done ? meta.check : 'border border-slate-300 bg-white'}`}>
+        {done && <Check size={16} strokeWidth={3} className="text-white" />}
+      </span>
+      <span className={`flex-1 text-sm leading-snug ${done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+    </div>
+  );
+}
+
 function AddItemRow({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -251,15 +304,32 @@ function AddItemRow({ onAdd }) {
   );
 }
 
+function FieldInput({ label, value, onChange, placeholder }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-slate-500">{label} <span className="font-normal text-slate-400">(valgfritt)</span></label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      />
+    </div>
+  );
+}
+
 /* ---------------- Hovedapp ---------------- */
 function ExamPrep() {
   const [boot] = useState(readInitial);
-  const [data, setData] = useState(boot.data);
+  const [drafts, setDrafts] = useState(boot.drafts);
   const [selectedType, setSelectedType] = useState(boot.selectedType);
+  const [saved, setSaved] = useState(boot.saved);
   const [confirm, setConfirm] = useState(null);
   const [celebrate, setCelebrate] = useState(false);
+  const [viewingEntryId, setViewingEntryId] = useState(null);
+  const [flash, setFlash] = useState(false);
 
-  useEffect(() => { saveState({ data, selectedType }); }, [data, selectedType]);
+  useEffect(() => { saveState({ drafts, selectedType, saved }); }, [drafts, selectedType, saved]);
 
   useEffect(() => {
     if (!celebrate) return;
@@ -268,14 +338,17 @@ function ExamPrep() {
     return () => clearTimeout(t);
   }, [celebrate]);
 
+  const setField = (type, field, value) =>
+    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), [field]: value } }));
+
   const toggle = (type, itemId) => {
-    const entry = data[type] || { checked: {}, custom: [] };
-    const wasChecked = !!entry.checked[itemId];
-    const checked = { ...entry.checked };
+    const d = drafts[type] || emptyDraft();
+    const wasChecked = !!d.checked[itemId];
+    const checked = { ...d.checked };
     if (wasChecked) delete checked[itemId]; else checked[itemId] = true;
-    setData((prev) => ({ ...prev, [type]: { ...(prev[type] || { checked: {}, custom: [] }), checked } }));
+    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), checked } }));
     if (!wasChecked) {
-      const items = itemsForType(type, entry);
+      const items = itemsFor(type, d);
       const done = items.filter((i) => checked[i.id]).length;
       if (items.length > 0 && done === items.length) setConfirm({ kind: 'finished', type });
     }
@@ -284,32 +357,71 @@ function ExamPrep() {
   const addCustom = (type, label) => {
     const text = label.trim();
     if (!text) return;
-    setData((prev) => {
-      const e = prev[type] || { checked: {}, custom: [] };
-      return { ...prev, [type]: { ...e, custom: [...e.custom, { id: 'cu_' + uid(), label: text }] } };
+    setDrafts((prev) => {
+      const d = prev[type] || emptyDraft();
+      return { ...prev, [type]: { ...d, custom: [...d.custom, { id: 'cu_' + uid(), label: text }] } };
     });
   };
-
   const removeCustom = (type, itemId) => {
-    setData((prev) => {
-      const e = prev[type] || { checked: {}, custom: [] };
-      const checked = { ...e.checked };
-      delete checked[itemId];
-      return { ...prev, [type]: { ...e, custom: e.custom.filter((c) => c.id !== itemId), checked } };
+    setDrafts((prev) => {
+      const d = prev[type] || emptyDraft();
+      const checked = { ...d.checked }; delete checked[itemId];
+      return { ...prev, [type]: { ...d, custom: d.custom.filter((c) => c.id !== itemId), checked } };
     });
   };
 
-  const resetType = (type) => {
-    setData((prev) => ({ ...prev, [type]: { ...(prev[type] || { checked: {}, custom: [] }), checked: {} } }));
+  const resetChecks = (type) => {
+    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), checked: {} } }));
     setConfirm(null);
   };
 
+  const finishType = (type) => {
+    setCelebrate(true);
+    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), checked: {}, emnekode: '', reelTid: '' } }));
+    setSelectedType('');
+    setConfirm(null);
+  };
+
+  const saveDraft = (type) => {
+    const d = drafts[type]; if (!d) return;
+    const emnekode = (d.emnekode || '').trim();
+    const reelTid = (d.reelTid || '').trim();
+    setSaved((prev) => {
+      const idx = prev.findIndex((e) => e.type === type && e.emnekode === emnekode && e.reelTid === reelTid);
+      const entry = {
+        id: idx >= 0 ? prev[idx].id : ('sv_' + uid()),
+        type, emnekode, reelTid,
+        checked: { ...d.checked }, custom: d.custom.map((c) => ({ ...c })), savedAt: Date.now(),
+      };
+      if (idx >= 0) { const next = prev.slice(); next[idx] = entry; return next; }
+      return [entry, ...prev];
+    });
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1700);
+  };
+
+  const reuseEntry = (entry) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [entry.type]: { checked: {}, custom: (entry.custom || []).map((c) => ({ ...c })), emnekode: entry.emnekode || '', reelTid: '' },
+    }));
+    setViewingEntryId(null);
+    setSelectedType(entry.type);
+  };
+  const deleteEntry = (id) => {
+    setSaved((prev) => prev.filter((e) => e.id !== id));
+    setViewingEntryId(null);
+    setConfirm(null);
+  };
+
+  const groups = groupByCode(saved);
   const m = selectedType ? TYPE_META[selectedType] : null;
-  const entry = selectedType ? (data[selectedType] || { checked: {}, custom: [] }) : null;
-  const items = selectedType ? itemsForType(selectedType, entry) : [];
-  const total = items.length;
-  const done = selectedType ? items.filter((i) => entry.checked[i.id]).length : 0;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const draft = selectedType ? (drafts[selectedType] || emptyDraft()) : null;
+  const prog = selectedType ? progress(selectedType, draft) : { items: [], total: 0, done: 0, pct: 0 };
+
+  const detailEntry = viewingEntryId ? saved.find((e) => e.id === viewingEntryId) : null;
+  const dm = detailEntry ? TYPE_META[detailEntry.type] : null;
+  const dProg = detailEntry ? progress(detailEntry.type, detailEntry) : { items: [], total: 0, done: 0, pct: 0 };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
@@ -325,80 +437,168 @@ function ExamPrep() {
           </div>
         </header>
 
-        <label htmlFor="type-select" className="mb-1.5 block text-sm font-semibold text-slate-600">Eksamenstype</label>
-        <div className="relative">
-          <select
-            id="type-select"
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          >
-            <option value="">Velg eksamenstype …</option>
-            {TYPES.map((t) => (<option key={t} value={t}>{TYPE_META[t].label}</option>))}
-          </select>
-          <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        </div>
-
-        {!selectedType ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center shadow-sm">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25">
-              <ClipboardList size={24} />
-            </div>
-            <h3 className="ec-display mt-4 text-base font-bold text-slate-900">Velg en eksamenstype</h3>
-            <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">
-              Velg type i menyen over for å se sjekklisten for forberedelsene. Du kan også legge til egne punkter.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-5">
+        {detailEntry ? (
+          /* ============ Lagret oppføring (detalj) ============ */
+          <div>
+            <button onClick={() => setViewingEntryId(null)} className="mb-4 inline-flex items-center gap-1 rounded-md text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">
+              <ChevronLeft size={16} /> Tilbake
+            </button>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <TypeChip type={selectedType} />
+              <TypeChip type={detailEntry.type} />
+              <h2 className="ec-display mt-2 text-lg font-bold text-slate-900">{detailEntry.emnekode || 'Uten emnekode'}</h2>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-slate-500">
+                <span>{detailEntry.reelTid || 'Uten reel tid'}</span>
+                <span className="text-slate-400">Lagret {formatSaved(detailEntry.savedAt)}</span>
+              </div>
               <div className="mt-4">
-                <ProgressBar pct={pct} colorClass={m.bar} />
+                <ProgressBar pct={dProg.pct} colorClass={dm.bar} />
                 <div className="mt-1.5 flex justify-between text-xs text-slate-500">
-                  <span>{done} av {total} fullført</span>
-                  <span className="ec-num font-semibold text-slate-600">{pct}%</span>
+                  <span>{dProg.done} av {dProg.total} fullført</span>
+                  <span className="ec-num font-semibold text-slate-600">{dProg.pct}%</span>
                 </div>
               </div>
-
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                {items.map((it) => (
-                  <div key={it.id} className={it.indent ? 'ml-9' : ''}>
-                    <ItemRow
-                      label={it.label}
-                      checked={!!entry.checked[it.id]}
-                      meta={m}
-                      onToggle={() => toggle(selectedType, it.id)}
-                      onRemove={it.id.indexOf('cu_') === 0 ? () => removeCustom(selectedType, it.id) : null}
-                    />
-                  </div>
+              <div className="mt-5 border-t border-slate-100 pt-3">
+                {dProg.items.map((it) => (
+                  <StaticRow key={it.id} label={it.label} done={!!detailEntry.checked[it.id]} meta={dm} indent={it.indent} />
                 ))}
-              </div>
-
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <AddItemRow onAdd={(label) => addCustom(selectedType, label)} />
               </div>
             </div>
 
-            <div className="mt-3 flex">
-              <button
-                onClick={() => setConfirm({ kind: 'reset', type: selectedType })}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white"
-              >
-                <RotateCcw size={14} /> Tilbakestill sjekklisten
+            <button onClick={() => reuseEntry(detailEntry)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition-opacity hover:opacity-90">
+              <Plus size={16} /> Velg dette emnet igjen
+            </button>
+            <div className="mt-2 flex">
+              <button onClick={() => setConfirm({ kind: 'deleteEntry', id: detailEntry.id })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50">
+                <Trash size={14} /> Slett oppføring
               </button>
             </div>
           </div>
+        ) : (
+          <>
+            <label htmlFor="type-select" className="mb-1.5 block text-sm font-semibold text-slate-600">Eksamenstype</label>
+            <div className="relative">
+              <select
+                id="type-select"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                <option value="">Velg eksamenstype …</option>
+                {TYPES.map((t) => (<option key={t} value={t}>{TYPE_META[t].label}</option>))}
+              </select>
+              <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            {!selectedType ? (
+              /* ============ Startskjerm ============ */
+              saved.length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center shadow-sm">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25">
+                    <ClipboardList size={24} />
+                  </div>
+                  <h3 className="ec-display mt-4 text-base font-bold text-slate-900">Velg en eksamenstype</h3>
+                  <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">
+                    Velg type i menyen over for å se sjekklisten. Du kan fylle inn emnekode og reel tid, og lagre lista for senere.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <p className="mb-4 text-sm text-slate-500">Velg en type over for en ny liste, eller åpne en lagret nedenfor.</p>
+                  <h2 className="ec-display mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Lagrede emner</h2>
+                  <div className="space-y-5">
+                    {groups.map((g) => (
+                      <div key={g.code || '__none'}>
+                        <h3 className="ec-display mb-2 text-sm font-bold text-slate-700">{g.code || 'Uten emnekode'}</h3>
+                        <div className="space-y-2">
+                          {g.entries.map((e) => {
+                            const ep = progress(e.type, e);
+                            const em = TYPE_META[e.type];
+                            return (
+                              <button key={e.id} onClick={() => setViewingEntryId(e.id)} className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <TypeChip type={e.type} />
+                                    <div className="mt-1.5 text-sm font-medium text-slate-700">{e.reelTid || 'Uten reel tid'}</div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <div className="ec-num text-sm font-semibold text-slate-700">{ep.done}/{ep.total}</div>
+                                    <div className="text-xs text-slate-400">{formatSaved(e.savedAt)}</div>
+                                  </div>
+                                </div>
+                                <div className="mt-3"><ProgressBar pct={ep.pct} colorClass={em.bar} /></div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : (
+              /* ============ Sjekkliste for valgt type ============ */
+              <div className="mt-5">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <TypeChip type={selectedType} />
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <FieldInput label="Emnekode" value={draft.emnekode} onChange={(v) => setField(selectedType, 'emnekode', v)} placeholder="F.eks. INF1000" />
+                    <FieldInput label="Reel tid" value={draft.reelTid} onChange={(v) => setField(selectedType, 'reelTid', v)} placeholder="F.eks. 09:00, 12. des" />
+                  </div>
+
+                  <div className="mt-4">
+                    <ProgressBar pct={prog.pct} colorClass={m.bar} />
+                    <div className="mt-1.5 flex justify-between text-xs text-slate-500">
+                      <span>{prog.done} av {prog.total} fullført</span>
+                      <span className="ec-num font-semibold text-slate-600">{prog.pct}%</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 border-t border-slate-100 pt-3">
+                    {prog.items.map((it) => (
+                      <div key={it.id} className={it.indent ? 'ml-9' : ''}>
+                        <ItemRow
+                          label={it.label}
+                          checked={!!draft.checked[it.id]}
+                          meta={m}
+                          onToggle={() => toggle(selectedType, it.id)}
+                          onRemove={it.id.indexOf('cu_') === 0 ? () => removeCustom(selectedType, it.id) : null}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <AddItemRow onAdd={(label) => addCustom(selectedType, label)} />
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button onClick={() => saveDraft(selectedType)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition-opacity hover:opacity-90">
+                    <Save size={15} /> Lagre
+                  </button>
+                  <button onClick={() => setConfirm({ kind: 'reset', type: selectedType })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white">
+                    <RotateCcw size={14} /> Tilbakestill
+                  </button>
+                  {flash && <span className="ec-rise inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Check size={14} strokeWidth={3} /> Lagret</span>}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Bekreftelse */}
       {confirm && (() => {
-        const isFinished = confirm.kind === 'finished';
-        const title = isFinished ? 'Er du sikker på at du er helt ferdig?' : 'Tilbakestille fremdrift?';
+        const k = confirm.kind;
+        const isFinished = k === 'finished';
+        const isDelete = k === 'deleteEntry';
+        const title = isFinished ? 'Er du sikker på at du er helt ferdig?' : isDelete ? 'Slette oppføringen?' : 'Tilbakestille fremdrift?';
         const body = isFinished
-          ? 'Du har fullført alle punktene. Trykker du «Ja», nullstilles hele sjekklisten så den er klar til neste eksamen. Trykk «Nei» for å fortsette.'
-          : 'Alle punkter merkes som ikke fullført. Egne punkter du har lagt til, beholdes.';
+          ? 'Du har fullført alle punktene. Trykker du «Ja», nullstilles lista, og du går tilbake til startskjermen. Trykk «Nei» for å fortsette.'
+          : isDelete
+            ? 'Den lagrede oppføringen fjernes permanent. Dette kan ikke angres.'
+            : 'Alle punkter merkes som ikke fullført. Emnekode, reel tid og egne punkter beholdes.';
         return (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirm(null)}>
             <div className="ec-pop w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -409,13 +609,11 @@ function ExamPrep() {
                   {isFinished ? 'Nei' : 'Avbryt'}
                 </button>
                 {isFinished ? (
-                  <button onClick={() => { setCelebrate(true); resetType(confirm.type); setSelectedType(''); }} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
-                    Ja
-                  </button>
+                  <button onClick={() => finishType(confirm.type)} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">Ja</button>
+                ) : isDelete ? (
+                  <button onClick={() => deleteEntry(confirm.id)} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700">Slett</button>
                 ) : (
-                  <button onClick={() => resetType(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">
-                    Tilbakestill
-                  </button>
+                  <button onClick={() => resetChecks(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">Tilbakestill</button>
                 )}
               </div>
             </div>
@@ -434,7 +632,7 @@ function ExamPrep() {
               </div>
             </div>
             <h3 className="ec-display ec-rise mt-5 text-2xl font-extrabold text-slate-900">Ferdig! 🎉</h3>
-            <p className="ec-rise mt-1 text-sm text-slate-500">Alt er huket av og klart til eksamen. Sjekklisten er nullstilt for neste gang.</p>
+            <p className="ec-rise mt-1 text-sm text-slate-500">Alt er huket av og klart til eksamen. Du er tilbake på startskjermen.</p>
             <button onClick={() => setCelebrate(false)} className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
               Flott!
             </button>
