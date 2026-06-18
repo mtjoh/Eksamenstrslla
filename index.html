@@ -201,16 +201,16 @@ function ProgressBar({ pct, colorClass }) {
 
 function ItemRow({ label, checked, meta, onToggle, onRemove }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-lg px-1 py-1.5">
+    <div className="flex items-start gap-3 rounded-lg px-1 py-2.5">
       <button
         onClick={onToggle}
         aria-pressed={checked}
         aria-label={label}
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
           checked ? meta.check + ' shadow-sm' : 'border border-slate-300 bg-white hover:border-slate-400'
         }`}
       >
-        {checked && <Check size={12} strokeWidth={3} className="text-white" />}
+        {checked && <Check size={16} strokeWidth={3} className="text-white" />}
       </button>
       <span className={`flex-1 text-sm leading-snug ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
         {label}
@@ -363,7 +363,7 @@ function ExamPrep() {
 
               <div className="mt-5 border-t border-slate-100 pt-4">
                 {items.map((it) => (
-                  <div key={it.id} className={it.indent ? 'ml-7' : ''}>
+                  <div key={it.id} className={it.indent ? 'ml-9' : ''}>
                     <ItemRow
                       label={it.label}
                       checked={!!entry.checked[it.id]}
@@ -409,7 +409,7 @@ function ExamPrep() {
                   {isFinished ? 'Nei' : 'Avbryt'}
                 </button>
                 {isFinished ? (
-                  <button onClick={() => { setCelebrate(true); resetType(confirm.type); }} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
+                  <button onClick={() => { setCelebrate(true); resetType(confirm.type); setSelectedType(''); }} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
                     Ja
                   </button>
                 ) : (
