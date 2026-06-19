@@ -432,6 +432,9 @@ function ExamPrep() {
   const m = selectedType ? TYPE_META[selectedType] : null;
   const draft = selectedType ? (drafts[selectedType] || emptyDraft()) : null;
   const prog = selectedType ? progress(selectedType, draft) : { items: [], total: 0, done: 0, pct: 0 };
+  const currentSavedEntry = selectedType
+    ? saved.find((e) => !e.archived && e.type === selectedType && e.emnekode === (draft.emnekode || '').trim() && e.reelTid === (draft.reelTid || '').trim())
+    : null;
 
   const detailEntry = viewingEntryId ? saved.find((e) => e.id === viewingEntryId) : null;
   const dm = detailEntry ? TYPE_META[detailEntry.type] : null;
@@ -596,6 +599,11 @@ function ExamPrep() {
                   <button onClick={() => setConfirm({ kind: 'reset', type: selectedType })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white">
                     <RotateCcw size={14} /> Tilbakestill
                   </button>
+                  {currentSavedEntry && (
+                    <button onClick={() => setConfirm({ kind: 'deleteEntry', id: currentSavedEntry.id, andLeave: true, type: selectedType })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50">
+                      <Trash size={14} /> Slett oppføring
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -646,7 +654,7 @@ function ExamPrep() {
               <div className="mt-5 flex justify-end gap-2">
                 <button onClick={() => setConfirm(null)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100">Avbryt</button>
                 {isDelete ? (
-                  <button onClick={() => deleteEntry(confirm.id)} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700">Slett</button>
+                  <button onClick={() => { const c = confirm; deleteEntry(c.id); if (c.andLeave) { setDrafts((prev) => ({ ...prev, [c.type]: emptyDraft() })); setSelectedType(''); } }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700">Slett</button>
                 ) : (
                   <button onClick={() => resetChecks(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">Tilbakestill</button>
                 )}
