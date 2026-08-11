@@ -485,7 +485,7 @@ function ExamPrep() {
   };
   const deleteEntry = (id) => { setSaved((p) => p.filter((e) => e.id !== id)); setViewingEntryId(null); setConfirm(null); };
   const archiveEntry = (id) => setSaved((p) => p.map((e) => (e.id === id ? { ...e, archived: true } : e)));
-  const unarchiveEntry = (id) => { setSaved((p) => p.map((e) => (e.id === id ? { ...e, archived: false } : e))); setViewingEntryId(null); };
+  const unarchiveEntry = (id) => { setSaved((p) => p.map((e) => (e.id === id ? { ...e, archived: false } : e))); setViewingEntryId(null); setShowArchive(false); };
 
   const startTemplateEdit = (t) => { setTplItems(copyItems(templates[t])); setEditingType(t); };
   const saveTemplate = () => {
