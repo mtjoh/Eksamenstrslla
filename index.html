@@ -585,7 +585,7 @@ function ExamPrep() {
               </button>
             </div>
           </div>
-        ) : !selectedType ? (
+        ) : (!selectedType && !showArchive) ? (
           /* ======== Startskjerm ======== */
           <div>
             <h2 className="ec-display mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Velg eksamenstype</h2>
