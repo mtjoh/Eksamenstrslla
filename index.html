@@ -25,7 +25,21 @@
   .ec-ring { animation: ecRing 1s ease-out forwards; }
   @keyframes ecRise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
   .ec-rise { animation: ecRise .4s ease-out both; }
-  @media (prefers-reduced-motion: reduce) { *, .ec-pop, .ec-ring, .ec-rise { animation: none !important; transition: none !important; } }
+  @keyframes ecViewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .ec-view { animation: ecViewIn .3s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes ecCheckPop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.3); opacity: 1; } 100% { transform: scale(1); } }
+  .ec-checkpop { animation: ecCheckPop .3s cubic-bezier(.2,.8,.3,1.5) both; }
+  @keyframes ecLeaveL { to { transform: translateX(-115%); opacity: 0; max-height: 0; margin-top: 0; margin-bottom: 0; } }
+  @keyframes ecLeaveR { to { transform: translateX(115%); opacity: 0; max-height: 0; margin-top: 0; margin-bottom: 0; } }
+  .ec-leave-l { animation: ecLeaveL .32s cubic-bezier(.4,0,.8,.4) forwards; overflow: hidden; }
+  .ec-leave-r { animation: ecLeaveR .32s cubic-bezier(.4,0,.8,.4) forwards; overflow: hidden; }
+  @keyframes ecGlow { 0%, 100% { box-shadow: 0 0 0 rgba(16,185,129,0); } 50% { box-shadow: 0 0 14px rgba(16,185,129,.6); } }
+  .ec-glow { animation: ecGlow 1.8s ease-in-out infinite; }
+  @keyframes ecToastIn { from { opacity: 0; transform: translate(-50%, 16px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+  .ec-toast { animation: ecToastIn .32s cubic-bezier(.2,.8,.3,1.3) both; }
+  @keyframes ecRowIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  .ec-rowin { animation: ecRowIn .25s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { *, .ec-pop, .ec-ring, .ec-rise, .ec-view, .ec-checkpop, .ec-glow, .ec-toast, .ec-rowin { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -217,7 +231,7 @@ function TypeChip({ type }) {
 
 function ProgressBar({ pct, colorClass }) {
   return (
-    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+    <div className={`h-2.5 w-full overflow-hidden rounded-full bg-slate-100 ${pct === 100 ? 'ec-glow' : ''}`}>
       <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: pct + '%' }} />
     </div>
   );
@@ -228,12 +242,12 @@ function ItemRow({ label, checked, meta, onToggle }) {
     <div className="flex items-start gap-3 rounded-lg px-1 py-2.5">
       <button
         onClick={onToggle} aria-pressed={checked} aria-label={label}
-        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all duration-200 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
           checked ? meta.check + ' shadow-sm' : 'border border-slate-300 bg-white hover:border-slate-400'}`}
       >
-        {checked && <Check size={16} strokeWidth={3} className="text-white" />}
+        {checked && <span className="ec-checkpop flex"><Check size={16} strokeWidth={3} className="text-white" /></span>}
       </button>
-      <span className={`flex-1 text-sm leading-snug ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+      <span className={`flex-1 text-sm leading-snug transition-colors duration-200 ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
     </div>
   );
 }
@@ -337,7 +351,7 @@ function EditableList({ items, onChange }) {
 }
 
 /* ---------------- Sveipekort ---------------- */
-function SwipeCard({ entry: e, isOpen, setOpen, onOpenEntry, onDelete, onSecondary, secondaryLabel }) {
+function SwipeCard({ entry: e, isOpen, setOpen, onOpenEntry, onDelete, onSecondary, secondaryLabel, leaving }) {
   const [dx, setDx] = useState(0);
   const startX = useRef(0);
   const pressing = useRef(false);
@@ -373,7 +387,7 @@ function SwipeCard({ entry: e, isOpen, setOpen, onOpenEntry, onDelete, onSeconda
   const cancel = () => { pressing.current = false; if (!isOpen) setDx(0); };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className={`relative overflow-hidden rounded-2xl ${leaving === 'right' ? 'ec-leave-r' : leaving === 'left' ? 'ec-leave-l' : ''}`}>
       <button onClick={() => { setOpen(null); onDelete(); }} aria-label="Slett oppføring"
         className="absolute inset-y-0 left-0 flex items-center justify-center bg-rose-500 text-sm font-bold text-white"
         style={{ width: OPEN, opacity: dx > 0 ? 1 : 0, pointerEvents: isOpen && dx > 0 ? 'auto' : 'none' }}>
@@ -426,6 +440,20 @@ function ExamPrep() {
   const [confirm, setConfirm] = useState(null);
   const [saveMenu, setSaveMenu] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [leavingCard, setLeavingCard] = useState(null);
+  const lastPct = useRef(-1);
+
+  const showToast = (text) => {
+    setToast({ text, id: uid() });
+    setTimeout(() => setToast(null), 2200);
+  };
+  const buzz = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (x) {} };
+  // Kortet glir ut før det faktisk fjernes/flyttes
+  const animateOut = (id, dir, action) => {
+    setLeavingCard({ id, dir });
+    setTimeout(() => { action(); setLeavingCard(null); }, 320);
+  };
 
   useEffect(() => { saveState({ templates, drafts, saved }); }, [templates, drafts, saved]);
   useEffect(() => {
@@ -453,7 +481,13 @@ function ExamPrep() {
     const checked = { ...d.checked };
     if (was) delete checked[itemId]; else checked[itemId] = true;
     setDrafts((p) => ({ ...p, [selectedType]: { ...p[selectedType], checked } }));
-    if (!was && d.items.length > 0 && d.items.filter((i) => checked[i.id]).length === d.items.length) setSaveMenu(true);
+    if (!was) buzz(12);
+    const total = d.items.length;
+    const done = d.items.filter((i) => checked[i.id]).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    if (!was && total > 0 && done === total) { setSaveMenu(true); }
+    else if (!was && pct >= 50 && lastPct.current < 50) { showToast('Halvveis! 💪'); }
+    lastPct.current = pct;
   };
 
   const saveDraft = (archived) => {
@@ -510,6 +544,11 @@ function ExamPrep() {
   const detailEntry = viewingEntryId ? saved.find((e) => e.id === viewingEntryId) : null;
   const dm = detailEntry ? TYPE_META[detailEntry.type] : null;
   const dProg = detailEntry ? progress(detailEntry) : { items: [], total: 0, done: 0, pct: 0 };
+  const viewKey = editingType ? 'tpl-' + editingType
+    : detailEntry ? 'detail-' + detailEntry.id
+    : showArchive ? 'archive'
+    : selectedType ? 'list-' + selectedType
+    : 'home';
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
@@ -525,6 +564,7 @@ function ExamPrep() {
           </div>
         </header>
 
+        <div key={viewKey} className="ec-view">
         {editingType ? (
           /* ======== Rediger standardliste for en type ======== */
           <div>
@@ -615,8 +655,11 @@ function ExamPrep() {
                 <div className="space-y-2">
                   {activeSaved.map((e) => (
                     <SwipeCard key={e.id} entry={e} isOpen={openCardId === e.id} setOpen={setOpenCardId}
-                      onOpenEntry={() => openEntry(e)} onDelete={() => deleteEntry(e.id)}
-                      onSecondary={() => archiveEntry(e.id)} secondaryLabel="Arkivér?" />
+                      leaving={leavingCard && leavingCard.id === e.id ? leavingCard.dir : null}
+                      onOpenEntry={() => openEntry(e)}
+                      onDelete={() => animateOut(e.id, 'right', () => deleteEntry(e.id))}
+                      onSecondary={() => animateOut(e.id, 'left', () => { archiveEntry(e.id); showToast('Flyttet til arkivet'); })}
+                      secondaryLabel="Arkivér?" />
                   ))}
                 </div>
               </div>
@@ -654,8 +697,11 @@ function ExamPrep() {
                 <div className="space-y-2">
                   {archivedSaved.map((e) => (
                     <SwipeCard key={e.id} entry={e} isOpen={openCardId === e.id} setOpen={setOpenCardId}
-                      onOpenEntry={() => openEntry(e)} onDelete={() => deleteEntry(e.id)}
-                      onSecondary={() => unarchiveEntry(e.id)} secondaryLabel="Hent tilbake?" />
+                      leaving={leavingCard && leavingCard.id === e.id ? leavingCard.dir : null}
+                      onOpenEntry={() => openEntry(e)}
+                      onDelete={() => animateOut(e.id, 'right', () => deleteEntry(e.id))}
+                      onSecondary={() => animateOut(e.id, 'left', () => { unarchiveEntry(e.id); showToast('Hentet tilbake'); })}
+                      secondaryLabel="Hent tilbake?" />
                   ))}
                 </div>
               </>
@@ -722,7 +768,15 @@ function ExamPrep() {
             )}
           </div>
         )}
+        </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div key={toast.id} className="ec-toast pointer-events-none fixed bottom-6 left-1/2 z-50 rounded-full bg-slate-900/90 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-sm">
+          {toast.text}
+        </div>
+      )}
 
       {/* Lagre-valg */}
       {saveMenu && (
