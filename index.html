@@ -32,7 +32,7 @@
 <div id="root"></div>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 /* ---------------- Ikoner (inline SVG) ---------------- */
 const ic = (p = {}) => ({
@@ -51,100 +51,113 @@ const Plus = (p) => (<svg {...ic(p)}><path d="M12 5v14M5 12h14"/></svg>);
 const Check = (p) => (<svg {...ic(p)}><path d="M20 6 9 17l-5-5"/></svg>);
 const XIcon = (p) => (<svg {...ic(p)}><path d="M18 6 6 18M6 6l12 12"/></svg>);
 const RotateCcw = (p) => (<svg {...ic(p)}><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>);
-const ChevronDown = (p) => (<svg {...ic(p)}><path d="m6 9 6 6 6-6"/></svg>);
 const ChevronLeft = (p) => (<svg {...ic(p)}><path d="m15 18-6-6 6-6"/></svg>);
-const ClipboardList = (p) => (<svg {...ic(p)}><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>);
 const Save = (p) => (<svg {...ic(p)}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h7"/></svg>);
 const Trash = (p) => (<svg {...ic(p)}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>);
+const Pencil = (p) => (<svg {...ic(p)}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>);
+const Grip = (p) => (<svg {...ic(p)}><circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>);
+const IndentIcon = (p) => (<svg {...ic(p)}><path d="M3 8h7M3 16h7M21 12H10"/><path d="m14 8 4 4-4 4"/></svg>);
 
-/* ---------------- Sjekklister ---------------- */
-const PAPER_ITEMS = [
-  { id: 'pa_rom', label: 'Klargjøre rom' },
-  { id: 'pa_oppslag', label: 'Oppslagslister fra FS' },
-  { id: 'pa_oppmote', label: 'Oppmøtelister fra FS' },
-  { id: 'pa_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
-  { id: 'pa_kladd', label: 'Kladdeark' },
-  { id: 'pa_innforing', label: 'Innføringsark' },
-  { id: 'pa_omslag', label: 'Omslagsark' },
-  { id: 'pa_regl', label: 'Eksamensreglement' },
-  { id: 'pa_perm', label: 'Blå perm med informasjon til hovedvakt' },
-  { id: 'pa_perm_d', label: 'Se over innholdet i permen', indent: true },
-  { id: 'pa_nokkel', label: 'Nøkkelkort til eksamensvakter' },
-  { id: 'pa_boks', label: 'Boks med diverse rekvisita' },
-  { id: 'pa_klokke', label: 'Klokke' },
-  { id: 'pa_plakat', label: 'Plakat «Eksamen pågår»' },
-  { id: 'pa_hjelp', label: 'Hjelpemidler' },
-  { id: 'pa_kaffe', label: 'Kaffe og te til eksamensvakter' },
-];
-
-const LOCKDOWN_ITEMS = [
-  { id: 'lo_rom', label: 'Klargjøre rom' },
-  { id: 'lo_oppslag', label: 'Oppslagslister fra FS' },
-  { id: 'lo_oppmote', label: 'Oppmøtelister fra FS' },
-  { id: 'lo_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
-  { id: 'lo_kladd', label: 'Kladdeark' },
-  { id: 'lo_regl', label: 'Eksamensreglement' },
-  { id: 'lo_perm', label: 'Blå perm med informasjon til hovedvakt' },
-  { id: 'lo_perm_d', label: 'Se over innholdet i permen', indent: true },
-  { id: 'lo_nokkel', label: 'Nøkkelkort til eksamensvakter' },
-  { id: 'lo_boks', label: 'Boks med diverse rekvisita' },
-  { id: 'lo_klokke', label: 'Klokke' },
-  { id: 'lo_plakat', label: 'Plakat «Eksamen pågår»' },
-  { id: 'lo_skjote', label: 'Skjøteledninger' },
-  { id: 'lo_hjelp', label: 'Hjelpemidler' },
-  { id: 'lo_kaffe', label: 'Kaffe og te til eksamensvakter' },
-  { id: 'lo_deltaker', label: 'Deltakerpassord – store plakater' },
-  { id: 'lo_vaktpass', label: 'Eksamensvaktpassord' },
-];
-
-const MONITOR_ITEMS = [
-  { id: 'mo_rom', label: 'Klargjøre rom' },
-  { id: 'mo_oppslag', label: 'Oppslagslister fra FS' },
-  { id: 'mo_oppmote', label: 'Oppmøtelister fra FS' },
-  { id: 'mo_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
-  { id: 'mo_kladd', label: 'Kladdeark' },
-  { id: 'mo_regl', label: 'Eksamensreglement' },
-  { id: 'mo_perm', label: 'Blå perm med informasjon til hovedvakt' },
-  { id: 'mo_perm_d', label: 'Se over innholdet i permen', indent: true },
-  { id: 'mo_nokkel', label: 'Nøkkelkort til eksamensvakter' },
-  { id: 'mo_boks', label: 'Boks med diverse rekvisita' },
-  { id: 'mo_klokke', label: 'Klokke' },
-  { id: 'mo_plakat', label: 'Plakat «Eksamen pågår»' },
-  { id: 'mo_skjote', label: 'Skjøteledninger' },
-  { id: 'mo_hjelp', label: 'Hjelpemidler' },
-  { id: 'mo_kaffe', label: 'Kaffe og te til eksamensvakter' },
-];
-
-const ORAL_ITEMS = [
-  { id: 'or_melding', label: 'Meldingslister fra FS' },
-  { id: 'or_melding_d', label: 'Navn og signatur', indent: true },
-  { id: 'or_tidsplan', label: 'Tidsplan' },
-  { id: 'or_plakat', label: 'Plakat «Eksamen pågår»' },
-];
+/* ---------------- Standard sjekklister ---------------- */
+const DEFAULT_TEMPLATES = {
+  paper: [
+    { id: 'pa_rom', label: 'Klargjøre rom' },
+    { id: 'pa_oppslag', label: 'Oppslagslister fra FS' },
+    { id: 'pa_oppmote', label: 'Oppmøtelister fra FS' },
+    { id: 'pa_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
+    { id: 'pa_kladd', label: 'Kladdeark' },
+    { id: 'pa_innforing', label: 'Innføringsark' },
+    { id: 'pa_omslag', label: 'Omslagsark' },
+    { id: 'pa_regl', label: 'Eksamensreglement' },
+    { id: 'pa_perm', label: 'Blå perm med informasjon til hovedvakt' },
+    { id: 'pa_perm_d', label: 'Se over innholdet i permen', indent: true },
+    { id: 'pa_nokkel', label: 'Nøkkelkort til eksamensvakter' },
+    { id: 'pa_boks', label: 'Boks med diverse rekvisita' },
+    { id: 'pa_klokke', label: 'Klokke' },
+    { id: 'pa_plakat', label: 'Plakat «Eksamen pågår»' },
+    { id: 'pa_hjelp', label: 'Hjelpemidler' },
+    { id: 'pa_kaffe', label: 'Kaffe og te til eksamensvakter' },
+  ],
+  lockdown: [
+    { id: 'lo_rom', label: 'Klargjøre rom' },
+    { id: 'lo_oppslag', label: 'Oppslagslister fra FS' },
+    { id: 'lo_oppmote', label: 'Oppmøtelister fra FS' },
+    { id: 'lo_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
+    { id: 'lo_kladd', label: 'Kladdeark' },
+    { id: 'lo_regl', label: 'Eksamensreglement' },
+    { id: 'lo_perm', label: 'Blå perm med informasjon til hovedvakt' },
+    { id: 'lo_perm_d', label: 'Se over innholdet i permen', indent: true },
+    { id: 'lo_nokkel', label: 'Nøkkelkort til eksamensvakter' },
+    { id: 'lo_boks', label: 'Boks med diverse rekvisita' },
+    { id: 'lo_klokke', label: 'Klokke' },
+    { id: 'lo_plakat', label: 'Plakat «Eksamen pågår»' },
+    { id: 'lo_skjote', label: 'Skjøteledninger' },
+    { id: 'lo_hjelp', label: 'Hjelpemidler' },
+    { id: 'lo_kaffe', label: 'Kaffe og te til eksamensvakter' },
+    { id: 'lo_deltaker', label: 'Deltakerpassord – store plakater' },
+    { id: 'lo_vaktpass', label: 'Eksamensvaktpassord' },
+  ],
+  monitor: [
+    { id: 'mo_rom', label: 'Klargjøre rom' },
+    { id: 'mo_oppslag', label: 'Oppslagslister fra FS' },
+    { id: 'mo_oppmote', label: 'Oppmøtelister fra FS' },
+    { id: 'mo_oppmote_d', label: 'Kandidatnummer, navn, avkrysningsfelt og tilpasning', indent: true },
+    { id: 'mo_kladd', label: 'Kladdeark' },
+    { id: 'mo_regl', label: 'Eksamensreglement' },
+    { id: 'mo_perm', label: 'Blå perm med informasjon til hovedvakt' },
+    { id: 'mo_perm_d', label: 'Se over innholdet i permen', indent: true },
+    { id: 'mo_nokkel', label: 'Nøkkelkort til eksamensvakter' },
+    { id: 'mo_boks', label: 'Boks med diverse rekvisita' },
+    { id: 'mo_klokke', label: 'Klokke' },
+    { id: 'mo_plakat', label: 'Plakat «Eksamen pågår»' },
+    { id: 'mo_skjote', label: 'Skjøteledninger' },
+    { id: 'mo_hjelp', label: 'Hjelpemidler' },
+    { id: 'mo_kaffe', label: 'Kaffe og te til eksamensvakter' },
+  ],
+  oral: [
+    { id: 'or_melding', label: 'Meldingslister fra FS' },
+    { id: 'or_melding_d', label: 'Navn og signatur', indent: true },
+    { id: 'or_tidsplan', label: 'Tidsplan' },
+    { id: 'or_plakat', label: 'Plakat «Eksamen pågår»' },
+  ],
+};
 
 const TYPES = ['paper', 'lockdown', 'monitor', 'oral'];
 
-function baseItems(type) {
-  if (type === 'paper') return PAPER_ITEMS;
-  if (type === 'lockdown') return LOCKDOWN_ITEMS;
-  if (type === 'monitor') return MONITOR_ITEMS;
-  if (type === 'oral') return ORAL_ITEMS;
-  return [];
-}
-
 const TYPE_META = {
-  paper:    { label: 'Penn og papir',     Icon: FileText,  chip: 'bg-amber-50 text-amber-700 ring-amber-200',     bar: 'bg-gradient-to-r from-amber-400 to-orange-500',   check: 'bg-gradient-to-br from-amber-400 to-orange-500' },
-  lockdown: { label: 'Lockdown Browser',  Icon: Lock,      chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200',  bar: 'bg-gradient-to-r from-indigo-500 to-violet-500',  check: 'bg-gradient-to-br from-indigo-500 to-violet-500' },
-  monitor:  { label: 'Device Monitor',    Icon: ScanLine,  chip: 'bg-rose-50 text-rose-700 ring-rose-200',        bar: 'bg-gradient-to-r from-rose-500 to-pink-500',      check: 'bg-gradient-to-br from-rose-500 to-pink-500' },
-  oral:     { label: 'Muntlig/praktisk',  Icon: Mic,       chip: 'bg-teal-50 text-teal-700 ring-teal-200',        bar: 'bg-gradient-to-r from-emerald-400 to-teal-500',   check: 'bg-gradient-to-br from-emerald-400 to-teal-500' },
+  paper:    { label: 'Penn og papir',    Icon: FileText, chip: 'bg-amber-50 text-amber-700 ring-amber-200',    bar: 'bg-gradient-to-r from-amber-400 to-orange-500',  check: 'bg-gradient-to-br from-amber-400 to-orange-500' },
+  lockdown: { label: 'Lockdown Browser', Icon: Lock,     chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200', bar: 'bg-gradient-to-r from-indigo-500 to-violet-500', check: 'bg-gradient-to-br from-indigo-500 to-violet-500' },
+  monitor:  { label: 'Device Monitor',   Icon: ScanLine, chip: 'bg-rose-50 text-rose-700 ring-rose-200',       bar: 'bg-gradient-to-r from-rose-500 to-pink-500',     check: 'bg-gradient-to-br from-rose-500 to-pink-500' },
+  oral:     { label: 'Muntlig/praktisk', Icon: Mic,      chip: 'bg-teal-50 text-teal-700 ring-teal-200',       bar: 'bg-gradient-to-r from-emerald-400 to-teal-500',  check: 'bg-gradient-to-br from-emerald-400 to-teal-500' },
 };
 
 /* ---------------- Lagring (localStorage) ---------------- */
-const KEY = 'eksamenstralla:v2';
+const KEY = 'eksamenstralla:v3';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const copyItems = (arr) => (arr || []).map((i) => ({ id: i.id, label: i.label, indent: !!i.indent }));
 
-function emptyDraft() { return { checked: {}, custom: [], emnekode: '', reelTid: '' }; }
-function emptyDrafts() { const d = {}; for (const t of TYPES) d[t] = emptyDraft(); return d; }
+function defaultTemplates() {
+  const t = {};
+  for (const k of TYPES) t[k] = copyItems(DEFAULT_TEMPLATES[k]);
+  return t;
+}
+function freshDraft(type, templates) {
+  return { items: copyItems(templates[type]), checked: {}, emnekode: '', reelTid: '' };
+}
+function isUntouched(d) {
+  return d && Object.keys(d.checked || {}).length === 0 && !(d.emnekode || '').trim() && !(d.reelTid || '').trim();
+}
+function progress(holder) {
+  const items = (holder && holder.items) || [];
+  const checked = (holder && holder.checked) || {};
+  const total = items.length;
+  const done = items.filter((i) => checked[i.id]).length;
+  return { items, total, done, pct: total ? Math.round((done / total) * 100) : 0 };
+}
+function formatSaved(ts) {
+  try { return new Date(ts).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  catch (e) { return ''; }
+}
 
 function loadState() {
   try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; }
@@ -154,58 +167,27 @@ function saveState(o) {
 }
 function readInitial() {
   const s = loadState();
-  const drafts = emptyDrafts();
-  let selectedType = '';
+  const templates = defaultTemplates();
+  if (s && s.templates) {
+    for (const t of TYPES) if (Array.isArray(s.templates[t]) && s.templates[t].length) templates[t] = copyItems(s.templates[t]);
+  }
+  const drafts = {};
+  for (const t of TYPES) {
+    const d = s && s.drafts ? s.drafts[t] : null;
+    drafts[t] = d && Array.isArray(d.items)
+      ? { items: copyItems(d.items), checked: d.checked || {}, emnekode: d.emnekode || '', reelTid: d.reelTid || '' }
+      : freshDraft(t, templates);
+  }
   let saved = [];
-  if (s) {
-    if (s.drafts) {
-      for (const t of TYPES) {
-        const dd = s.drafts[t];
-        if (dd) drafts[t] = {
-          checked: dd.checked || {},
-          custom: Array.isArray(dd.custom) ? dd.custom : [],
-          emnekode: typeof dd.emnekode === 'string' ? dd.emnekode : '',
-          reelTid: typeof dd.reelTid === 'string' ? dd.reelTid : '',
-        };
-      }
-    }
-    if (typeof s.selectedType === 'string') selectedType = s.selectedType;
-    if (Array.isArray(s.saved)) {
-      saved = s.saved.filter((e) => e && TYPES.indexOf(e.type) >= 0).map((e) => ({
-        id: e.id || ('sv_' + uid()), type: e.type,
-        emnekode: e.emnekode || '', reelTid: e.reelTid || '',
-        checked: e.checked || {}, custom: Array.isArray(e.custom) ? e.custom : [],
-        savedAt: e.savedAt || Date.now(), archived: !!e.archived,
-      }));
-    }
+  if (s && Array.isArray(s.saved)) {
+    saved = s.saved.filter((e) => e && TYPES.indexOf(e.type) >= 0).map((e) => ({
+      id: e.id || ('sv_' + uid()), type: e.type,
+      emnekode: e.emnekode || '', reelTid: e.reelTid || '',
+      items: Array.isArray(e.items) ? copyItems(e.items) : copyItems(templates[e.type]),
+      checked: e.checked || {}, savedAt: e.savedAt || Date.now(), archived: !!e.archived,
+    }));
   }
-  return { drafts, selectedType, saved };
-}
-
-function itemsFor(type, holder) {
-  return baseItems(type).concat((holder && holder.custom) || []);
-}
-function progress(type, holder) {
-  const items = itemsFor(type, holder);
-  const total = items.length;
-  const checked = (holder && holder.checked) || {};
-  const done = items.filter((i) => checked[i.id]).length;
-  return { items, total, done, pct: total ? Math.round((done / total) * 100) : 0 };
-}
-function groupByCode(saved) {
-  const map = {}; const order = [];
-  for (const e of saved) {
-    const key = e.emnekode || '';
-    if (!map[key]) { map[key] = []; order.push(key); }
-    map[key].push(e);
-  }
-  const groups = order.map((code) => ({ code, entries: map[code].slice().sort((a, b) => b.savedAt - a.savedAt) }));
-  groups.sort((a, b) => { if (a.code === '') return 1; if (b.code === '') return -1; return a.code.localeCompare(b.code, 'nb'); });
-  return groups;
-}
-function formatSaved(ts) {
-  try { return new Date(ts).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
-  catch (e) { return ''; }
+  return { templates, drafts, saved };
 }
 
 /* ---------------- Feiring ---------------- */
@@ -221,14 +203,12 @@ function fireConfetti() {
   })();
 }
 
-/* ---------------- Små komponenter ---------------- */
+/* ---------------- Grunnkomponenter ---------------- */
 function TypeChip({ type }) {
-  const m = TYPE_META[type];
-  const Icon = m.Icon;
+  const m = TYPE_META[type]; const Icon = m.Icon;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${m.chip}`}>
-      <Icon size={13} />
-      {m.label}
+      <Icon size={13} />{m.label}
     </span>
   );
 }
@@ -241,27 +221,17 @@ function ProgressBar({ pct, colorClass }) {
   );
 }
 
-function ItemRow({ label, checked, meta, onToggle, onRemove }) {
+function ItemRow({ label, checked, meta, onToggle }) {
   return (
     <div className="flex items-start gap-3 rounded-lg px-1 py-2.5">
       <button
-        onClick={onToggle}
-        aria-pressed={checked}
-        aria-label={label}
+        onClick={onToggle} aria-pressed={checked} aria-label={label}
         className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-          checked ? meta.check + ' shadow-sm' : 'border border-slate-300 bg-white hover:border-slate-400'
-        }`}
+          checked ? meta.check + ' shadow-sm' : 'border border-slate-300 bg-white hover:border-slate-400'}`}
       >
         {checked && <Check size={16} strokeWidth={3} className="text-white" />}
       </button>
-      <span className={`flex-1 text-sm leading-snug ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-        {label}
-      </span>
-      {onRemove && (
-        <button onClick={onRemove} aria-label="Fjern punkt" className="mt-0.5 shrink-0 text-slate-300 transition-colors hover:text-rose-500">
-          <XIcon size={14} />
-        </button>
-      )}
+      <span className={`flex-1 text-sm leading-snug ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
     </div>
   );
 }
@@ -277,43 +247,163 @@ function StaticRow({ label, done, meta, indent }) {
   );
 }
 
-function AddItemRow({ onAdd }) {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const submit = () => { if (text.trim()) { onAdd(text); setText(''); setOpen(false); } };
-  if (!open) {
-    return (
-      <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md px-1 text-xs font-semibold text-indigo-500 transition-colors hover:text-indigo-700">
-        <Plus size={13} /> Legg til eget punkt
-      </button>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        autoFocus
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setOpen(false); setText(''); } }}
-        placeholder="Nytt punkt …"
-        className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-      />
-      <button onClick={submit} className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90">Legg til</button>
-      <button onClick={() => { setOpen(false); setText(''); }} aria-label="Avbryt" className="text-slate-400 transition-colors hover:text-slate-600"><XIcon size={16} /></button>
-    </div>
-  );
-}
-
 function FieldInput({ label, value, onChange, placeholder }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-semibold text-slate-500">{label} <span className="font-normal text-slate-400">(valgfritt)</span></label>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-      />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+    </div>
+  );
+}
+
+/* ---------------- Redigering av punkter ---------------- */
+function EditableList({ items, onChange }) {
+  const dragFrom = useRef(null);
+  const [activeIdx, setActiveIdx] = useState(null);
+  const [newText, setNewText] = useState('');
+
+  const down = (i) => (ev) => {
+    dragFrom.current = i; setActiveIdx(i);
+    try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (x) {}
+  };
+  const move = (ev) => {
+    if (dragFrom.current === null) return;
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const row = el && el.closest ? el.closest('[data-row-idx]') : null;
+    if (!row) return;
+    const to = parseInt(row.getAttribute('data-row-idx'), 10);
+    const from = dragFrom.current;
+    if (isNaN(to) || to === from) return;
+    const next = items.slice();
+    const moved = next.splice(from, 1)[0];
+    next.splice(to, 0, moved);
+    dragFrom.current = to; setActiveIdx(to);
+    onChange(next);
+  };
+  const up = (ev) => {
+    dragFrom.current = null; setActiveIdx(null);
+    try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (x) {}
+  };
+
+  const setLabel = (i, v) => { const n = items.slice(); n[i] = { ...n[i], label: v }; onChange(n); };
+  const toggleIndent = (i) => { const n = items.slice(); n[i] = { ...n[i], indent: !n[i].indent }; onChange(n); };
+  const remove = (i) => { const n = items.slice(); n.splice(i, 1); onChange(n); };
+  const add = () => {
+    const t = newText.trim(); if (!t) return;
+    onChange(items.concat([{ id: 'cu_' + uid(), label: t, indent: false }]));
+    setNewText('');
+  };
+
+  return (
+    <div>
+      <div>
+        {items.map((it, i) => (
+          <div key={it.id} data-row-idx={i}
+            className={`flex items-center gap-1.5 rounded-xl py-1 ${activeIdx === i ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-200' : ''} ${it.indent ? 'ml-6' : ''}`}>
+            <button onPointerDown={down(i)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+              aria-label="Flytt punkt" style={{ touchAction: 'none' }}
+              className="shrink-0 cursor-grab rounded-md p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+              <Grip size={18} />
+            </button>
+            <input value={it.label} onChange={(e) => setLabel(i, e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+            <button onClick={() => toggleIndent(i)} aria-label="Underpunkt av/på" title="Underpunkt"
+              className={`shrink-0 rounded-md p-1.5 transition-colors ${it.indent ? 'bg-indigo-100 text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}>
+              <IndentIcon size={15} />
+            </button>
+            <button onClick={() => remove(i)} aria-label="Slett punkt"
+              className="shrink-0 rounded-md p-1.5 text-slate-300 transition-colors hover:text-rose-500">
+              <Trash size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+        <input value={newText} onChange={(e) => setNewText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+          placeholder="Nytt punkt …"
+          className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+        <button onClick={add} className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90">
+          <Plus size={14} /> Legg til
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-slate-400">Dra i prikkene for å flytte. Trykk i teksten for å endre navn.</p>
+    </div>
+  );
+}
+
+/* ---------------- Sveipekort ---------------- */
+function SwipeCard({ entry: e, isOpen, setOpen, onOpenEntry, onDelete, onArchive }) {
+  const [dx, setDx] = useState(0);
+  const startX = useRef(0);
+  const pressing = useRef(false);
+  const moved = useRef(false);
+  const OPEN = 100, THRESH = 55;
+  const canArchive = !e.archived;
+  const ep = progress(e);
+  const em = TYPE_META[e.type];
+
+  useEffect(() => { if (!isOpen) setDx(0); }, [isOpen]);
+
+  const down = (ev) => {
+    startX.current = ev.clientX; pressing.current = true; moved.current = false;
+    try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (x) {}
+  };
+  const move = (ev) => {
+    if (!pressing.current) return;
+    let d = ev.clientX - startX.current;
+    if (isOpen) d += (dx > 0 ? OPEN : -OPEN);
+    if (!canArchive && d < 0) d = 0;
+    if (Math.abs(ev.clientX - startX.current) > 6) moved.current = true;
+    setDx(Math.max(-130, Math.min(130, d)));
+  };
+  const up = (ev) => {
+    if (!pressing.current) return;
+    pressing.current = false;
+    try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (x) {}
+    if (!moved.current) { if (isOpen) { setOpen(null); } else { onOpenEntry(); } setDx(isOpen ? 0 : dx); return; }
+    if (dx > THRESH) { setOpen(e.id); setDx(OPEN); }
+    else if (dx < -THRESH && canArchive) { setOpen(e.id); setDx(-OPEN); }
+    else { setOpen(null); setDx(0); }
+  };
+  const cancel = () => { pressing.current = false; if (!isOpen) setDx(0); };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      <button onClick={() => { setOpen(null); onDelete(); }} aria-label="Slett oppføring"
+        className="absolute inset-y-0 left-0 flex items-center justify-center bg-rose-500 text-sm font-bold text-white"
+        style={{ width: OPEN, opacity: dx > 0 ? 1 : 0, pointerEvents: isOpen && dx > 0 ? 'auto' : 'none' }}>
+        Slett?
+      </button>
+      <button onClick={() => { setOpen(null); onArchive(); }} aria-label="Arkivér oppføring"
+        className="absolute inset-y-0 right-0 flex items-center justify-center bg-emerald-500 text-sm font-bold text-white"
+        style={{ width: OPEN, opacity: dx < 0 ? 1 : 0, pointerEvents: isOpen && dx < 0 ? 'auto' : 'none' }}>
+        Arkivér?
+      </button>
+
+      <div onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel}
+        style={{ transform: `translateX(${dx}px)`, transition: pressing.current ? 'none' : 'transform 0.22s ease', touchAction: 'pan-y' }}
+        className="relative z-10 select-none rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TypeChip type={e.type} />
+              {e.archived
+                ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Arkivert</span>
+                : <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600">Pågår</span>}
+            </div>
+            <h3 className="ec-display mt-2 text-base font-bold text-slate-900">{e.emnekode || 'Uten emnekode'}</h3>
+            <div className="text-sm text-slate-500">{e.reelTid || 'Uten reel tid'}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="ec-num text-sm font-semibold text-slate-700">{ep.done}/{ep.total}</div>
+            <div className="text-xs text-slate-400">{formatSaved(e.savedAt)}</div>
+          </div>
+        </div>
+        <div className="mt-3"><ProgressBar pct={ep.pct} colorClass={em.bar} /></div>
+      </div>
     </div>
   );
 }
@@ -321,16 +411,20 @@ function FieldInput({ label, value, onChange, placeholder }) {
 /* ---------------- Hovedapp ---------------- */
 function ExamPrep() {
   const [boot] = useState(readInitial);
+  const [templates, setTemplates] = useState(boot.templates);
   const [drafts, setDrafts] = useState(boot.drafts);
-  const [selectedType, setSelectedType] = useState(boot.selectedType);
   const [saved, setSaved] = useState(boot.saved);
-  const [confirm, setConfirm] = useState(null);
-  const [celebrate, setCelebrate] = useState(false);
+  const [selectedType, setSelectedType] = useState('');
+  const [editingType, setEditingType] = useState(null);
+  const [tplItems, setTplItems] = useState([]);
+  const [listEdit, setListEdit] = useState(false);
   const [viewingEntryId, setViewingEntryId] = useState(null);
+  const [openCardId, setOpenCardId] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const [saveMenu, setSaveMenu] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
 
-  useEffect(() => { saveState({ drafts, selectedType, saved }); }, [drafts, selectedType, saved]);
-
+  useEffect(() => { saveState({ templates, drafts, saved }); }, [templates, drafts, saved]);
   useEffect(() => {
     if (!celebrate) return;
     fireConfetti();
@@ -338,107 +432,78 @@ function ExamPrep() {
     return () => clearTimeout(t);
   }, [celebrate]);
 
-  const setField = (type, field, value) =>
-    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), [field]: value } }));
+  const draft = selectedType ? drafts[selectedType] : null;
+  const m = selectedType ? TYPE_META[selectedType] : null;
+  const prog = draft ? progress(draft) : { items: [], total: 0, done: 0, pct: 0 };
 
-  const toggle = (type, itemId) => {
-    const d = drafts[type] || emptyDraft();
-    const wasChecked = !!d.checked[itemId];
+  const setField = (f, v) => setDrafts((p) => ({ ...p, [selectedType]: { ...p[selectedType], [f]: v } }));
+  const setItems = (items) => setDrafts((p) => {
+    const d = p[selectedType];
+    const valid = {};
+    for (const it of items) if (d.checked[it.id]) valid[it.id] = true;
+    return { ...p, [selectedType]: { ...d, items, checked: valid } };
+  });
+
+  const toggle = (itemId) => {
+    const d = drafts[selectedType];
+    const was = !!d.checked[itemId];
     const checked = { ...d.checked };
-    if (wasChecked) delete checked[itemId]; else checked[itemId] = true;
-    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), checked } }));
-    if (!wasChecked) {
-      const items = itemsFor(type, d);
-      const done = items.filter((i) => checked[i.id]).length;
-      if (items.length > 0 && done === items.length) setSaveMenu(true);
-    }
+    if (was) delete checked[itemId]; else checked[itemId] = true;
+    setDrafts((p) => ({ ...p, [selectedType]: { ...p[selectedType], checked } }));
+    if (!was && d.items.length > 0 && d.items.filter((i) => checked[i.id]).length === d.items.length) setSaveMenu(true);
   };
 
-  const addCustom = (type, label) => {
-    const text = label.trim();
-    if (!text) return;
-    setDrafts((prev) => {
-      const d = prev[type] || emptyDraft();
-      return { ...prev, [type]: { ...d, custom: [...d.custom, { id: 'cu_' + uid(), label: text }] } };
-    });
-  };
-  const removeCustom = (type, itemId) => {
-    setDrafts((prev) => {
-      const d = prev[type] || emptyDraft();
-      const checked = { ...d.checked }; delete checked[itemId];
-      return { ...prev, [type]: { ...d, custom: d.custom.filter((c) => c.id !== itemId), checked } };
-    });
-  };
-
-  const resetChecks = (type) => {
-    setDrafts((prev) => ({ ...prev, [type]: { ...(prev[type] || emptyDraft()), checked: {} } }));
-    setConfirm(null);
-  };
-
-  const saveDraft = (type, archived) => {
-    const d = drafts[type]; if (!d) return;
+  const saveDraft = (archived) => {
+    const d = drafts[selectedType]; if (!d) return;
     const emnekode = (d.emnekode || '').trim();
     const reelTid = (d.reelTid || '').trim();
     setSaved((prev) => {
-      const idx = prev.findIndex((e) => !e.archived && e.type === type && e.emnekode === emnekode && e.reelTid === reelTid);
+      const idx = prev.findIndex((e) => !e.archived && e.type === selectedType && e.emnekode === emnekode && e.reelTid === reelTid);
       const entry = {
-        id: idx >= 0 ? prev[idx].id : ('sv_' + uid()),
-        type, emnekode, reelTid,
-        checked: { ...d.checked }, custom: d.custom.map((c) => ({ ...c })),
-        savedAt: Date.now(), archived: !!archived,
+        id: idx >= 0 ? prev[idx].id : ('sv_' + uid()), type: selectedType, emnekode, reelTid,
+        items: copyItems(d.items), checked: { ...d.checked }, savedAt: Date.now(), archived: !!archived,
       };
-      if (idx >= 0) { const next = prev.slice(); next[idx] = entry; return next; }
+      if (idx >= 0) { const n = prev.slice(); n[idx] = entry; return n; }
       return [entry, ...prev];
     });
-    setSaveMenu(false);
-    setDrafts((prev) => ({ ...prev, [type]: emptyDraft() }));
-    setSelectedType('');
+    setDrafts((p) => ({ ...p, [selectedType]: freshDraft(selectedType, templates) }));
+    setSaveMenu(false); setListEdit(false); setSelectedType('');
     if (archived) setCelebrate(true);
   };
 
-  const reuseEntry = (entry) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [entry.type]: { checked: {}, custom: (entry.custom || []).map((c) => ({ ...c })), emnekode: entry.emnekode || '', reelTid: '' },
-    }));
-    setViewingEntryId(null);
-    setSelectedType(entry.type);
-  };
-  const deleteEntry = (id) => {
-    setSaved((prev) => prev.filter((e) => e.id !== id));
-    setViewingEntryId(null);
-    setConfirm(null);
-  };
   const openEntry = (entry) => {
-    if (entry.archived) {
-      setViewingEntryId(entry.id);
-    } else {
-      setDrafts((prev) => ({
-        ...prev,
-        [entry.type]: { checked: { ...entry.checked }, custom: (entry.custom || []).map((c) => ({ ...c })), emnekode: entry.emnekode || '', reelTid: entry.reelTid || '' },
-      }));
-      setViewingEntryId(null);
-      setSelectedType(entry.type);
-    }
+    if (entry.archived) { setViewingEntryId(entry.id); return; }
+    setDrafts((p) => ({ ...p, [entry.type]: { items: copyItems(entry.items), checked: { ...entry.checked }, emnekode: entry.emnekode || '', reelTid: entry.reelTid || '' } }));
+    setViewingEntryId(null); setListEdit(false); setSelectedType(entry.type);
+  };
+  const reuseEntry = (entry) => {
+    setDrafts((p) => ({ ...p, [entry.type]: { items: copyItems(entry.items), checked: {}, emnekode: entry.emnekode || '', reelTid: '' } }));
+    setViewingEntryId(null); setListEdit(false); setSelectedType(entry.type);
+  };
+  const deleteEntry = (id) => { setSaved((p) => p.filter((e) => e.id !== id)); setViewingEntryId(null); setConfirm(null); };
+  const archiveEntry = (id) => setSaved((p) => p.map((e) => (e.id === id ? { ...e, archived: true } : e)));
+
+  const startTemplateEdit = (t) => { setTplItems(copyItems(templates[t])); setEditingType(t); };
+  const saveTemplate = () => {
+    const t = editingType;
+    setTemplates((p) => ({ ...p, [t]: copyItems(tplItems) }));
+    setDrafts((p) => (isUntouched(p[t]) ? { ...p, [t]: { items: copyItems(tplItems), checked: {}, emnekode: '', reelTid: '' } } : p));
+    setEditingType(null);
   };
 
   const sortedSaved = saved.slice().sort((a, b) => {
-    const ca = a.emnekode || ''; const cb = b.emnekode || '';
+    const ca = a.emnekode || '', cb = b.emnekode || '';
     if (ca === '' && cb !== '') return 1;
     if (cb === '' && ca !== '') return -1;
     if (ca !== cb) return ca.localeCompare(cb, 'nb');
     return b.savedAt - a.savedAt;
   });
-  const m = selectedType ? TYPE_META[selectedType] : null;
-  const draft = selectedType ? (drafts[selectedType] || emptyDraft()) : null;
-  const prog = selectedType ? progress(selectedType, draft) : { items: [], total: 0, done: 0, pct: 0 };
   const currentSavedEntry = selectedType
     ? saved.find((e) => !e.archived && e.type === selectedType && e.emnekode === (draft.emnekode || '').trim() && e.reelTid === (draft.reelTid || '').trim())
     : null;
-
   const detailEntry = viewingEntryId ? saved.find((e) => e.id === viewingEntryId) : null;
   const dm = detailEntry ? TYPE_META[detailEntry.type] : null;
-  const dProg = detailEntry ? progress(detailEntry.type, detailEntry) : { items: [], total: 0, done: 0, pct: 0 };
+  const dProg = detailEntry ? progress(detailEntry) : { items: [], total: 0, done: 0, pct: 0 };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
@@ -454,10 +519,31 @@ function ExamPrep() {
           </div>
         </header>
 
-        {detailEntry ? (
-          /* ============ Lagret oppføring (detalj) ============ */
+        {editingType ? (
+          /* ======== Rediger standardliste for en type ======== */
           <div>
-            <button onClick={() => setViewingEntryId(null)} className="mb-4 inline-flex items-center gap-1 rounded-md text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">
+            <button onClick={() => setEditingType(null)} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800">
+              <ChevronLeft size={16} /> Avbryt
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <TypeChip type={editingType} />
+              <h2 className="ec-display mt-2 text-lg font-bold text-slate-900">Rediger standardliste</h2>
+              <p className="mb-4 text-sm text-slate-500">Endringene gjelder alle nye lister av denne typen.</p>
+              <EditableList items={tplItems} onChange={setTplItems} />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={saveTemplate} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 hover:opacity-90">
+                <Save size={15} /> Lagre standardliste
+              </button>
+              <button onClick={() => setTplItems(copyItems(DEFAULT_TEMPLATES[editingType]))} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-white">
+                <RotateCcw size={14} /> Original
+              </button>
+            </div>
+          </div>
+        ) : detailEntry ? (
+          /* ======== Arkivert oppføring (låst) ======== */
+          <div>
+            <button onClick={() => setViewingEntryId(null)} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800">
               <ChevronLeft size={16} /> Tilbake
             </button>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -466,7 +552,7 @@ function ExamPrep() {
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Arkivert · låst</span>
               </div>
               <h2 className="ec-display mt-2 text-lg font-bold text-slate-900">{detailEntry.emnekode || 'Uten emnekode'}</h2>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-slate-500">
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-slate-500">
                 <span>{detailEntry.reelTid || 'Uten reel tid'}</span>
                 <span className="text-slate-400">Lagret {formatSaved(detailEntry.savedAt)}</span>
               </div>
@@ -478,154 +564,131 @@ function ExamPrep() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-3">
-                {dProg.items.map((it) => (
-                  <StaticRow key={it.id} label={it.label} done={!!detailEntry.checked[it.id]} meta={dm} indent={it.indent} />
-                ))}
+                {dProg.items.map((it) => (<StaticRow key={it.id} label={it.label} done={!!detailEntry.checked[it.id]} meta={dm} indent={it.indent} />))}
               </div>
             </div>
-
-            <button onClick={() => reuseEntry(detailEntry)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition-opacity hover:opacity-90">
+            <button onClick={() => reuseEntry(detailEntry)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 hover:opacity-90">
               <Plus size={16} /> Velg dette emnet igjen
             </button>
             <div className="mt-2 flex">
-              <button onClick={() => setConfirm({ kind: 'deleteEntry', id: detailEntry.id })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50">
+              <button onClick={() => setConfirm({ kind: 'deleteEntry', id: detailEntry.id })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">
                 <Trash size={14} /> Slett oppføring
               </button>
             </div>
           </div>
-        ) : (
-          <>
-            <label htmlFor="type-select" className="mb-1.5 block text-sm font-semibold text-slate-600">Eksamenstype</label>
-            <div className="relative">
-              <select
-                id="type-select"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-800 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-              >
-                <option value="">Velg eksamenstype …</option>
-                {TYPES.map((t) => (<option key={t} value={t}>{TYPE_META[t].label}</option>))}
-              </select>
-              <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        ) : !selectedType ? (
+          /* ======== Startskjerm ======== */
+          <div>
+            <h2 className="ec-display mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Velg eksamenstype</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {TYPES.map((t) => {
+                const meta = TYPE_META[t]; const Icon = meta.Icon;
+                return (
+                  <div key={t} className="relative">
+                    <button onClick={() => { setListEdit(false); setSelectedType(t); }}
+                      className="flex w-full flex-col items-start gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 pr-10 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm ${meta.check}`}><Icon size={20} /></span>
+                      <span className="ec-display text-sm font-bold leading-tight text-slate-900">{meta.label}</span>
+                    </button>
+                    <button onClick={() => startTemplateEdit(t)} aria-label={'Rediger standardliste for ' + meta.label} title="Rediger standardliste"
+                      className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-600">
+                      <Pencil size={15} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
-            {!selectedType ? (
-              /* ============ Startskjerm ============ */
-              saved.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center shadow-sm">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25">
-                    <ClipboardList size={24} />
-                  </div>
-                  <h3 className="ec-display mt-4 text-base font-bold text-slate-900">Velg en eksamenstype</h3>
-                  <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">
-                    Velg type i menyen over for å se sjekklisten. Du kan fylle inn emnekode og reel tid, og lagre lista for senere.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-5">
-                  <p className="mb-4 text-sm text-slate-500">Velg en type over for en ny liste, eller åpne en lagret nedenfor.</p>
-                  <h2 className="ec-display mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Lagrede emner</h2>
-                  <div className="space-y-2">
-                    {sortedSaved.map((e) => {
-                      const ep = progress(e.type, e);
-                      const em = TYPE_META[e.type];
-                      return (
-                        <button key={e.id} onClick={() => openEntry(e)} className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <TypeChip type={e.type} />
-                                {e.archived
-                                  ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Arkivert</span>
-                                  : <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600">Pågår</span>}
-                              </div>
-                              <h3 className="ec-display mt-2 text-base font-bold text-slate-900">{e.emnekode || 'Uten emnekode'}</h3>
-                              <div className="text-sm text-slate-500">{e.reelTid || 'Uten reel tid'}</div>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <div className="ec-num text-sm font-semibold text-slate-700">{ep.done}/{ep.total}</div>
-                              <div className="text-xs text-slate-400">{formatSaved(e.savedAt)}</div>
-                            </div>
-                          </div>
-                          <div className="mt-3"><ProgressBar pct={ep.pct} colorClass={em.bar} /></div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )
-            ) : (
-              /* ============ Sjekkliste for valgt type ============ */
-              <div className="mt-5">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <TypeChip type={selectedType} />
-
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <FieldInput label="Emnekode" value={draft.emnekode} onChange={(v) => setField(selectedType, 'emnekode', v)} placeholder="F.eks. INF1000" />
-                    <FieldInput label="Reel tid" value={draft.reelTid} onChange={(v) => setField(selectedType, 'reelTid', v)} placeholder="F.eks. 09:00, 12. des" />
-                  </div>
-
-                  <div className="mt-4">
-                    <ProgressBar pct={prog.pct} colorClass={m.bar} />
-                    <div className="mt-1.5 flex justify-between text-xs text-slate-500">
-                      <span>{prog.done} av {prog.total} fullført</span>
-                      <span className="ec-num font-semibold text-slate-600">{prog.pct}%</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 border-t border-slate-100 pt-3">
-                    {prog.items.map((it) => (
-                      <div key={it.id} className={it.indent ? 'ml-9' : ''}>
-                        <ItemRow
-                          label={it.label}
-                          checked={!!draft.checked[it.id]}
-                          meta={m}
-                          onToggle={() => toggle(selectedType, it.id)}
-                          onRemove={it.id.indexOf('cu_') === 0 ? () => removeCustom(selectedType, it.id) : null}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 border-t border-slate-100 pt-3">
-                    <AddItemRow onAdd={(label) => addCustom(selectedType, label)} />
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button onClick={() => setSaveMenu(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition-opacity hover:opacity-90">
-                    <Save size={15} /> Lagre
-                  </button>
-                  <button onClick={() => setConfirm({ kind: 'reset', type: selectedType })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-white">
-                    <RotateCcw size={14} /> Tilbakestill
-                  </button>
-                  {currentSavedEntry && (
-                    <button onClick={() => setConfirm({ kind: 'deleteEntry', id: currentSavedEntry.id, andLeave: true, type: selectedType })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50">
-                      <Trash size={14} /> Slett oppføring
-                    </button>
-                  )}
+            {sortedSaved.length > 0 && (
+              <div className="mt-8">
+                <h2 className="ec-display mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Lagrede emner</h2>
+                <p className="mb-3 text-xs text-slate-400">Sveip til venstre for å arkivere, til høyre for å slette.</p>
+                <div className="space-y-2">
+                  {sortedSaved.map((e) => (
+                    <SwipeCard key={e.id} entry={e} isOpen={openCardId === e.id} setOpen={setOpenCardId}
+                      onOpenEntry={() => openEntry(e)} onDelete={() => deleteEntry(e.id)} onArchive={() => archiveEntry(e.id)} />
+                  ))}
                 </div>
               </div>
             )}
-          </>
+          </div>
+        ) : (
+          /* ======== Sjekkliste for valgt type ======== */
+          <div>
+            <button onClick={() => { setListEdit(false); setSelectedType(''); }} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800">
+              <ChevronLeft size={16} /> Tilbake
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <TypeChip type={selectedType} />
+                <button onClick={() => setListEdit(!listEdit)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${listEdit ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-50'}`}>
+                  {listEdit ? <><Check size={14} strokeWidth={3} /> Ferdig</> : <><Pencil size={14} /> Rediger</>}
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <FieldInput label="Emnekode" value={draft.emnekode} onChange={(v) => setField('emnekode', v)} placeholder="F.eks. INF1000" />
+                <FieldInput label="Reel tid" value={draft.reelTid} onChange={(v) => setField('reelTid', v)} placeholder="F.eks. 09:00, 12. des" />
+              </div>
+
+              <div className="mt-4">
+                <ProgressBar pct={prog.pct} colorClass={m.bar} />
+                <div className="mt-1.5 flex justify-between text-xs text-slate-500">
+                  <span>{prog.done} av {prog.total} fullført</span>
+                  <span className="ec-num font-semibold text-slate-600">{prog.pct}%</span>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-slate-100 pt-3">
+                {listEdit ? (
+                  <>
+                    <p className="mb-2 text-xs font-semibold text-indigo-600">Redigerer denne lista (påvirker ikke andre lister)</p>
+                    <EditableList items={draft.items} onChange={setItems} />
+                  </>
+                ) : (
+                  prog.items.map((it) => (
+                    <div key={it.id} className={it.indent ? 'ml-9' : ''}>
+                      <ItemRow label={it.label} checked={!!draft.checked[it.id]} meta={m} onToggle={() => toggle(it.id)} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {!listEdit && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button onClick={() => setSaveMenu(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 hover:opacity-90">
+                  <Save size={15} /> Lagre
+                </button>
+                <button onClick={() => setConfirm({ kind: 'reset' })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-white">
+                  <RotateCcw size={14} /> Tilbakestill
+                </button>
+                {currentSavedEntry && (
+                  <button onClick={() => setConfirm({ kind: 'deleteEntry', id: currentSavedEntry.id, andLeave: true })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">
+                    <Trash size={14} /> Slett oppføring
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Bekreftelse */}
       {/* Lagre-valg */}
       {saveMenu && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setSaveMenu(false)}>
           <div className="ec-pop w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="ec-display text-base font-bold text-slate-900">Lagre lista</h3>
             <div className="mt-4 space-y-2">
-              <button onClick={() => saveDraft(selectedType, false)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50">
+              <button onClick={() => saveDraft(false)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600"><Save size={18} /></span>
                 <span>
                   <span className="block text-sm font-semibold text-slate-800">Lagre og fortsett senere</span>
                   <span className="block text-xs text-slate-500">Du kan åpne lista igjen og jobbe videre.</span>
                 </span>
               </button>
-              <button onClick={() => saveDraft(selectedType, true)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50">
+              <button onClick={() => saveDraft(true)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><Check size={18} strokeWidth={3} /></span>
                 <span>
                   <span className="block text-sm font-semibold text-slate-800">Lagre og arkivér</span>
@@ -634,29 +697,30 @@ function ExamPrep() {
               </button>
             </div>
             <div className="mt-4 flex justify-end">
-              <button onClick={() => setSaveMenu(false)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100">Avbryt</button>
+              <button onClick={() => setSaveMenu(false)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Avbryt</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Bekreftelse */}
       {confirm && (() => {
         const isDelete = confirm.kind === 'deleteEntry';
-        const title = isDelete ? 'Slette oppføringen?' : 'Tilbakestille fremdrift?';
-        const body = isDelete
-          ? 'Den lagrede oppføringen fjernes permanent. Dette kan ikke angres.'
-          : 'Alle punkter merkes som ikke fullført. Emnekode, reel tid og egne punkter beholdes.';
         return (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirm(null)}>
             <div className="ec-pop w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="ec-display text-base font-bold text-slate-900">{title}</h3>
-              <p className="mt-1 text-sm text-slate-500">{body}</p>
+              <h3 className="ec-display text-base font-bold text-slate-900">{isDelete ? 'Slette oppføringen?' : 'Tilbakestille fremdrift?'}</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                {isDelete ? 'Den lagrede oppføringen fjernes permanent. Dette kan ikke angres.' : 'Alle punkter merkes som ikke fullført. Emnekode, reel tid og punktene beholdes.'}
+              </p>
               <div className="mt-5 flex justify-end gap-2">
-                <button onClick={() => setConfirm(null)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100">Avbryt</button>
+                <button onClick={() => setConfirm(null)} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Avbryt</button>
                 {isDelete ? (
-                  <button onClick={() => { const c = confirm; deleteEntry(c.id); if (c.andLeave) { setDrafts((prev) => ({ ...prev, [c.type]: emptyDraft() })); setSelectedType(''); } }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700">Slett</button>
+                  <button onClick={() => { const c = confirm; deleteEntry(c.id); if (c.andLeave) { setDrafts((p) => ({ ...p, [selectedType]: freshDraft(selectedType, templates) })); setSelectedType(''); } }}
+                    className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">Slett</button>
                 ) : (
-                  <button onClick={() => resetChecks(confirm.type)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800">Tilbakestill</button>
+                  <button onClick={() => { setDrafts((p) => ({ ...p, [selectedType]: { ...p[selectedType], checked: {} } })); setConfirm(null); }}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Tilbakestill</button>
                 )}
               </div>
             </div>
@@ -676,9 +740,7 @@ function ExamPrep() {
             </div>
             <h3 className="ec-display ec-rise mt-5 text-2xl font-extrabold text-slate-900">Arkivert! 🎉</h3>
             <p className="ec-rise mt-1 text-sm text-slate-500">Lista er lagret og låst. Du er tilbake på startskjermen.</p>
-            <button onClick={() => setCelebrate(false)} className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition-opacity hover:opacity-90">
-              Flott!
-            </button>
+            <button onClick={() => setCelebrate(false)} className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 hover:opacity-90">Flott!</button>
           </div>
         </div>
       )}
