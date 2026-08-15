@@ -39,6 +39,12 @@
   .ec-toast { animation: ecToastIn .32s cubic-bezier(.2,.8,.3,1.3) both; }
   @keyframes ecRowIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
   .ec-rowin { animation: ecRowIn .25s ease-out both; }
+  .ec-print { display: none; }
+  @media print {
+    .ec-screen { display: none !important; }
+    .ec-print { display: block !important; font-family: 'Inter', system-ui, sans-serif; color: #000; }
+    @page { margin: 16mm; }
+  }
   @media (prefers-reduced-motion: reduce) { *, .ec-pop, .ec-ring, .ec-rise, .ec-view, .ec-checkpop, .ec-glow, .ec-toast, .ec-rowin { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -71,6 +77,8 @@ const Trash = (p) => (<svg {...ic(p)}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1
 const Pencil = (p) => (<svg {...ic(p)}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>);
 const Grip = (p) => (<svg {...ic(p)}><circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>);
 const IndentIcon = (p) => (<svg {...ic(p)}><path d="M3 8h7M3 16h7M21 12H10"/><path d="m14 8 4 4-4 4"/></svg>);
+const CopyIcon = (p) => (<svg {...ic(p)}><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>);
+const Printer = (p) => (<svg {...ic(p)}><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>);
 const Folder = (p) => (<svg {...ic(p)}><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>);
 const Undo = (p) => (<svg {...ic(p)}><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>);
 
@@ -150,7 +158,7 @@ const TYPE_META = {
 /* ---------------- Lagring (localStorage) ---------------- */
 const KEY = 'eksamenstralla:v3';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const copyItems = (arr) => (arr || []).map((i) => ({ id: i.id, label: i.label, indent: !!i.indent }));
+const copyItems = (arr) => (arr || []).map((i) => ({ id: i.id, label: i.label, indent: !!i.indent, note: i.note || '' }));
 
 function defaultTemplates() {
   const t = {};
@@ -219,6 +227,60 @@ function fireConfetti() {
   })();
 }
 
+/* ---------------- Tekst og utskrift ---------------- */
+function listAsText(typeLabel, emnekode, reelTid, items, checked) {
+  const lines = ['Eksamenstralla – ' + typeLabel];
+  if (emnekode) lines.push('Emnekode: ' + emnekode);
+  if (reelTid) lines.push('Reel tid: ' + reelTid);
+  lines.push('');
+  for (const it of items) {
+    const pad = it.indent ? '   ' : '';
+    lines.push(pad + (checked[it.id] ? '[x] ' : '[ ] ') + it.label);
+    if (it.note) lines.push(pad + '     ' + it.note);
+  }
+  return lines.join('\n');
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  } catch (e) { /* faller tilbake under */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) { return false; }
+}
+
+function PrintView({ typeLabel, emnekode, reelTid, items, checked }) {
+  return (
+    <div className="ec-print">
+      <h1 style={{ fontSize: '20pt', margin: '0 0 4pt', fontWeight: 700 }}>{typeLabel}</h1>
+      <div style={{ fontSize: '11pt', marginBottom: '10pt', color: '#444' }}>
+        {emnekode ? <span style={{ marginRight: '14pt' }}><strong>Emnekode:</strong> {emnekode}</span> : null}
+        {reelTid ? <span><strong>Reel tid:</strong> {reelTid}</span> : null}
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
+        <tbody>
+          {items.map((it) => (
+            <tr key={it.id} style={{ borderBottom: '1px solid #ddd' }}>
+              <td style={{ width: '18pt', padding: '5pt 0', verticalAlign: 'top' }}>{checked[it.id] ? '☑' : '☐'}</td>
+              <td style={{ padding: '5pt 0 5pt ' + (it.indent ? '20pt' : '0') }}>
+                {it.label}
+                {it.note ? <div style={{ fontSize: '9pt', color: '#666' }}>{it.note}</div> : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ---------------- Grunnkomponenter ---------------- */
 function TypeChip({ type }) {
   const m = TYPE_META[type]; const Icon = m.Icon;
@@ -237,7 +299,7 @@ function ProgressBar({ pct, colorClass }) {
   );
 }
 
-function ItemRow({ label, checked, meta, onToggle }) {
+function ItemRow({ label, note, checked, meta, onToggle }) {
   return (
     <div className="flex items-start gap-3 rounded-lg px-1 py-2.5">
       <button
@@ -247,18 +309,24 @@ function ItemRow({ label, checked, meta, onToggle }) {
       >
         {checked && <span className="ec-checkpop flex"><Check size={16} strokeWidth={3} className="text-white" /></span>}
       </button>
-      <span className={`flex-1 text-sm leading-snug transition-colors duration-200 ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm leading-snug transition-colors duration-200 ${checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+        {note ? <span className={`mt-0.5 block text-xs ${checked ? 'text-slate-300' : 'text-slate-400'}`}>{note}</span> : null}
+      </span>
     </div>
   );
 }
 
-function StaticRow({ label, done, meta, indent }) {
+function StaticRow({ label, note, done, meta, indent }) {
   return (
     <div className={`flex items-start gap-3 px-1 py-2.5 ${indent ? 'ml-9' : ''}`}>
       <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${done ? meta.check : 'border border-slate-300 bg-white'}`}>
         {done && <Check size={16} strokeWidth={3} className="text-white" />}
       </span>
-      <span className={`flex-1 text-sm leading-snug ${done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm leading-snug ${done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{label}</span>
+        {note ? <span className="mt-0.5 block text-xs text-slate-400">{note}</span> : null}
+      </span>
     </div>
   );
 }
@@ -303,11 +371,12 @@ function EditableList({ items, onChange }) {
   };
 
   const setLabel = (i, v) => { const n = items.slice(); n[i] = { ...n[i], label: v }; onChange(n); };
+  const setNote = (i, v) => { const n = items.slice(); n[i] = { ...n[i], note: v }; onChange(n); };
   const toggleIndent = (i) => { const n = items.slice(); n[i] = { ...n[i], indent: !n[i].indent }; onChange(n); };
   const remove = (i) => { const n = items.slice(); n.splice(i, 1); onChange(n); };
   const add = () => {
     const t = newText.trim(); if (!t) return;
-    onChange(items.concat([{ id: 'cu_' + uid(), label: t, indent: false }]));
+    onChange(items.concat([{ id: 'cu_' + uid(), label: t, indent: false, note: '' }]));
     setNewText('');
   };
 
@@ -316,22 +385,27 @@ function EditableList({ items, onChange }) {
       <div>
         {items.map((it, i) => (
           <div key={it.id} data-row-idx={i}
-            className={`flex items-center gap-1.5 rounded-xl py-1 ${activeIdx === i ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-200' : ''} ${it.indent ? 'ml-6' : ''}`}>
-            <button onPointerDown={down(i)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
-              aria-label="Flytt punkt" style={{ touchAction: 'none' }}
-              className="shrink-0 cursor-grab rounded-md p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
-              <Grip size={18} />
-            </button>
-            <input value={it.label} onChange={(e) => setLabel(i, e.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
-            <button onClick={() => toggleIndent(i)} aria-label="Underpunkt av/på" title="Underpunkt"
-              className={`shrink-0 rounded-md p-1.5 transition-colors ${it.indent ? 'bg-indigo-100 text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}>
-              <IndentIcon size={15} />
-            </button>
-            <button onClick={() => remove(i)} aria-label="Slett punkt"
-              className="shrink-0 rounded-md p-1.5 text-slate-300 transition-colors hover:text-rose-500">
-              <Trash size={15} />
-            </button>
+            className={`rounded-xl py-1.5 ${activeIdx === i ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-200' : ''} ${it.indent ? 'ml-6' : ''}`}>
+            <div className="flex items-center gap-1.5">
+              <button onPointerDown={down(i)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+                aria-label="Flytt punkt" style={{ touchAction: 'none' }}
+                className="shrink-0 cursor-grab rounded-md p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+                <Grip size={18} />
+              </button>
+              <input value={it.label} onChange={(e) => setLabel(i, e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
+              <button onClick={() => toggleIndent(i)} aria-label="Underpunkt av/på" title="Underpunkt"
+                className={`shrink-0 rounded-md p-1.5 transition-colors ${it.indent ? 'bg-indigo-100 text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}>
+                <IndentIcon size={15} />
+              </button>
+              <button onClick={() => remove(i)} aria-label="Slett punkt"
+                className="shrink-0 rounded-md p-1.5 text-slate-300 transition-colors hover:text-rose-500">
+                <Trash size={15} />
+              </button>
+            </div>
+            <input value={it.note || ''} onChange={(e) => setNote(i, e.target.value)}
+              placeholder="Notat / antall (valgfritt)"
+              className="ml-8 mt-1 w-[calc(100%-2rem)] rounded-lg border border-dashed border-slate-200 px-2.5 py-1 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" />
           </div>
         ))}
       </div>
@@ -454,6 +528,11 @@ function ExamPrep() {
     setLeavingCard({ id, dir });
     setTimeout(() => { action(); setLeavingCard(null); }, 320);
   };
+  const doCopy = async (typeLabel, emnekode, reelTid, items, checked) => {
+    const ok = await copyText(listAsText(typeLabel, emnekode, reelTid, items, checked));
+    showToast(ok ? 'Lista er kopiert' : 'Kunne ikke kopiere');
+  };
+  const doPrint = () => { setTimeout(() => window.print(), 60); };
 
   useEffect(() => { saveState({ templates, drafts, saved }); }, [templates, drafts, saved]);
   useEffect(() => {
@@ -550,8 +629,16 @@ function ExamPrep() {
     : selectedType ? 'list-' + selectedType
     : 'home';
 
+  const printable = detailEntry
+    ? { typeLabel: TYPE_META[detailEntry.type].label, emnekode: detailEntry.emnekode, reelTid: detailEntry.reelTid, items: detailEntry.items, checked: detailEntry.checked }
+    : (selectedType && draft)
+      ? { typeLabel: TYPE_META[selectedType].label, emnekode: draft.emnekode, reelTid: draft.reelTid, items: draft.items, checked: draft.checked }
+      : null;
+
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
+    <>
+    {printable && <PrintView {...printable} />}
+    <div className="ec-screen min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-slate-800">
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
 
         <header className="mb-6 flex items-center gap-3 sm:mb-8">
@@ -610,7 +697,7 @@ function ExamPrep() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-3">
-                {dProg.items.map((it) => (<StaticRow key={it.id} label={it.label} done={!!detailEntry.checked[it.id]} meta={dm} indent={it.indent} />))}
+                {dProg.items.map((it) => (<StaticRow key={it.id} label={it.label} note={it.note} done={!!detailEntry.checked[it.id]} meta={dm} indent={it.indent} />))}
               </div>
             </div>
             <button onClick={() => reuseEntry(detailEntry)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 hover:opacity-90">
@@ -619,6 +706,13 @@ function ExamPrep() {
             <div className="mt-2 flex flex-wrap gap-2">
               <button onClick={() => unarchiveEntry(detailEntry.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <Undo size={14} /> Flytt tilbake til startskjerm
+              </button>
+              <button onClick={() => doCopy(TYPE_META[detailEntry.type].label, detailEntry.emnekode, detailEntry.reelTid, detailEntry.items, detailEntry.checked)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <CopyIcon size={14} /> Kopier
+              </button>
+              <button onClick={doPrint} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Printer size={14} /> Skriv ut
               </button>
               <button onClick={() => setConfirm({ kind: 'deleteEntry', id: detailEntry.id })} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">
                 <Trash size={14} /> Slett oppføring
@@ -744,7 +838,7 @@ function ExamPrep() {
                 ) : (
                   prog.items.map((it) => (
                     <div key={it.id} className={it.indent ? 'ml-9' : ''}>
-                      <ItemRow label={it.label} checked={!!draft.checked[it.id]} meta={m} onToggle={() => toggle(it.id)} />
+                      <ItemRow label={it.label} note={it.note} checked={!!draft.checked[it.id]} meta={m} onToggle={() => toggle(it.id)} />
                     </div>
                   ))
                 )}
@@ -755,6 +849,14 @@ function ExamPrep() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button onClick={() => setSaveMenu(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 hover:opacity-90">
                   <Save size={15} /> Lagre
+                </button>
+                <button onClick={() => doCopy(TYPE_META[selectedType].label, draft.emnekode, draft.reelTid, draft.items, draft.checked)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-transform hover:bg-white active:scale-95">
+                  <CopyIcon size={14} /> Kopier
+                </button>
+                <button onClick={doPrint}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 transition-transform hover:bg-white active:scale-95">
+                  <Printer size={14} /> Skriv ut
                 </button>
                 <button onClick={() => setConfirm({ kind: 'reset' })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-white">
                   <RotateCcw size={14} /> Tilbakestill
@@ -848,6 +950,7 @@ function ExamPrep() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
